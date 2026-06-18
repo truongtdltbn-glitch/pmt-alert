@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Prometheus Alert{% endblock %}
+
+{% block content %}
+<h1 class="page-title"><i class="fas fa-tachometer-alt"></i> Alert Dashboard</h1>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+    <div class="card" style="text-align: center;">
+        <div style="font-size: 2rem; color: var(--primary);">{{ configs|length }}</div>
+        <div>Total Alerts</div>
+    </div>
+    <div class="card" style="text-align: center;">
+        <div style="font-size: 2rem; color: var(--warning);">{{ recent_alerts }}</div>
+        <div>Last 24h Alerts</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2 style="margin-bottom: 1rem;">Active Alert Configurations</h2>
+    
+    {% if configs %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>App</th>
+                <th>Prometheus</th>
+                <th>Status</th>
+                <th>Last Checked</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for config in configs %}
+            <tr>
+                <td>{{ config['name'] }}</td>
+                <td>{{ config['app_name'] or 'N/A' }}</td>
+                <td>{{ config['prom_name'] or 'Unknown' }}</td>
+                <td>
+                    <span class="status status-{{ config['current_state'] or 'ok' }}">
+                        {{ config['current_state'] or 'OK' }}
+                    </span>
+                </td>
+                <td>{{ config['last_checked_at'] or 'Never' }}</td>
+                <td>
+                    <a href="/logs/{{ config['id'] }}" class="btn" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">Logs</a>
+                    <button onclick="deleteConfig({{ config['id'] }})" class="btn btn-danger" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">Delete</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: var(--text-dim); text-align: center; padding: 2rem;">No alert configurations found. <a href="/alert-config" class="btn">Create one</a></p>
+    {% endif %}
+</div>
+
+<script>
+function deleteConfig(id) {
+    if (confirm('Are you sure?')) {
+        fetch('/alert-config', {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({id: id})
+        }).then(() => location.reload());
+    }
+}
+</script>
+{% endblock %}

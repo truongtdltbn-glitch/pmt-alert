@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  pmt-alert:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./pmt_alert.db:/app/pmt_alert.db
+      - ./logs:/app/logs
+    environment:
+      - FLASK_ENV=production
+      - DB_PATH=/app/pmt_alert.db
+    restart: unless-stopped

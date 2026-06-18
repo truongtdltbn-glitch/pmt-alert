@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Connections - Prometheus Alert{% endblock %}
+
+{% block content %}
+<h1 class="page-title"><i class="fas fa-plug"></i> Prometheus Connections</h1>
+
+<div class="card">
+    <h2 style="margin-bottom: 1rem;">Add New Connection</h2>
+    <form method="POST">
+        <div class="form-group">
+            <label>Name:</label>
+            <input type="text" name="name" required>
+        </div>
+        
+        <div class="form-group">
+            <label>Prometheus URL:</label>
+            <input type="url" name="url" placeholder="https://prometheus.example.com/api/v1/query" required>
+        </div>
+        
+        <button type="submit" class="btn">Add Connection</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2 style="margin-bottom: 1rem;">Active Connections</h2>
+    
+    {% if connections %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>URL</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for conn in connections %}
+            <tr>
+                <td>{{ conn['name'] }}</td>
+                <td style="word-break: break-all; font-size: 0.9rem;">{{ conn['url'] }}</td>
+                <td>{{ conn['created_at'] }}</td>
+                <td>
+                    <button onclick="deleteConnection({{ conn['id'] }})" class="btn btn-danger" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">Delete</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: var(--text-dim); text-align: center; padding: 2rem;">No connections found.</p>
+    {% endif %}
+</div>
+
+<script>
+function deleteConnection(id) {
+    if (confirm('Are you sure?')) {
+        fetch('/connections', {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({id: id})
+        }).then(() => location.reload());
+    }
+}
+</script>
+{% endblock %}

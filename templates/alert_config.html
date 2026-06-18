@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Create Alert - Prometheus Alert{% endblock %}
+
+{% block content %}
+<h1 class="page-title"><i class="fas fa-bell"></i> Create Alert Configuration</h1>
+
+<div class="card">
+    <form method="POST">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+                <label>Alert Name:</label>
+                <input type="text" name="name" required>
+            </div>
+            
+            <div class="form-group">
+                <label>App Name:</label>
+                <input type="text" name="app_name" placeholder="Optional">
+            </div>
+            
+            <div class="form-group">
+                <label>Prometheus Connection:</label>
+                <select name="prometheus_id" required>
+                    <option value="">-- Select --</option>
+                    {% for conn in connections %}
+                    <option value="{{ conn['id'] }}">{{ conn['name'] }} ({{ conn['url'] }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Check Interval (minutes):</label>
+                <input type="number" name="interval_minutes" value="5" min="1">
+            </div>
+            
+            <div class="form-group">
+                <label>Warning Threshold:</label>
+                <input type="number" name="warning_threshold" value="1" step="0.1">
+            </div>
+            
+            <div class="form-group">
+                <label>Critical Threshold:</label>
+                <input type="number" name="critical_threshold" value="5" step="0.1">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>PromQL Query (e.g., <code>count(up == 0)</code>):</label>
+            <textarea name="query_string" rows="3" required placeholder='up == 0'></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label>Teams Webhook URL:</label>
+            <input type="url" name="msteams_webhook" required>
+        </div>
+        
+        <div style="background: rgba(59, 130, 246, 0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+            <h3 style="margin-bottom: 0.5rem;">Payload Template Variables:</h3>
+            <p style="font-size: 0.9rem; color: var(--text-dim);">
+                Use: {alert_name}, {app_name}, {query}, {value}, {warning_threshold}, {critical_threshold}, {timestamp}
+            </p>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+                <label>Payload Name Template:</label>
+                <input type="text" name="payload_name" value="Alert: {alert_name}" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Payload Error Template:</label>
+                <input type="text" name="payload_error" value="Value {value} exceeded threshold {critical_threshold}" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Payload Detail Template:</label>
+                <input type="text" name="payload_detail" value="Query: {query} | Result: {value}" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Payload Action Template:</label>
+                <input type="text" name="payload_action" value="Check Prometheus metrics" required>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>Grafana Link:</label>
+            <input type="url" name="payload_grafana" placeholder="https://grafana.example.com" required>
+        </div>
+        
+        <button type="submit" class="btn">Create Alert</button>
+    </form>
+</div>
+{% endblock %}

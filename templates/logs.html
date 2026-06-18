@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Logs - Prometheus Alert{% endblock %}
+
+{% block content %}
+<h1 class="page-title"><i class="fas fa-file-alt"></i> Alert Logs</h1>
+
+<div class="card">
+    {% if logs %}
+    <table>
+        <thead>
+            <tr>
+                <th>State</th>
+                <th>Value</th>
+                <th>Threshold</th>
+                <th>Message</th>
+                <th>Time</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td>
+                    <span class="status status-{{ log['alert_state'] }}">
+                        {{ log['alert_state']|upper }}
+                    </span>
+                </td>
+                <td>{{ "%.2f"|format(log['query_result_count'] or 0) }}</td>
+                <td>{{ "%.2f"|format(log['threshold'] or 0) }}</td>
+                <td style="word-break: break-word;">{{ log['message'] or 'N/A' }}</td>
+                <td>{{ log['created_at'] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div style="margin-top: 2rem; text-align: center;">
+        {% if page > 1 %}
+        <a href="/logs/{{ config_id }}?page={{ page-1 }}" class="btn">← Previous</a>
+        {% endif %}
+        
+        <span style="margin: 0 1rem; color: var(--text-dim);">Page {{ page }} of {{ total_pages }}</span>
+        
+        {% if page < total_pages %}
+        <a href="/logs/{{ config_id }}?page={{ page+1 }}" class="btn">Next →</a>
+        {% endif %}
+    </div>
+    
+    {% else %}
+    <p style="color: var(--text-dim); text-align: center; padding: 2rem;">No logs found.</p>
+    {% endif %}
+</div>
+{% endblock %}
