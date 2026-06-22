@@ -74,8 +74,11 @@
                         <th style="text-align: center;">CPU</th>
                         <th style="text-align: center;">Memory</th>
                         <th style="text-align: center;">Disk</th>
+                        <th style="text-align: center; font-size: 0.65rem;">CPU<br>Thresholds</th>
+                        <th style="text-align: center; font-size: 0.65rem;">Memory<br>Thresholds</th>
+                        <th style="text-align: center; font-size: 0.65rem;">Disk<br>Thresholds</th>
                         <th>Last Checked</th>
-                        <th style="text-align: center;">Actions</th>
+                        <th style="text-align: center; width: 120px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -132,6 +135,18 @@
                                     <span style="color: var(--text-secondary); font-size: 0.7rem;">--</span>
                                 {% endif %}
                             </td>
+                            <td style="text-align: center; font-size: 0.8rem; color: var(--text-secondary);">
+                                <span class="text-warning">W ≥ {{ server.cpu_warning_threshold }}%</span><br>
+                                <span class="text-critical">C ≥ {{ server.cpu_critical_threshold }}%</span>
+                            </td>
+                            <td style="text-align: center; font-size: 0.8rem; color: var(--text-secondary);">
+                                <span class="text-warning">W ≥ {{ server.memory_warning_threshold }}%</span><br>
+                                <span class="text-critical">C ≥ {{ server.memory_critical_threshold }}%</span>
+                            </td>
+                            <td style="text-align: center; font-size: 0.8rem; color: var(--text-secondary);">
+                                <span class="text-warning">W ≥ {{ server.disk_warning_threshold }}%</span><br>
+                                <span class="text-critical">C ≥ {{ server.disk_critical_threshold }}%</span>
+                            </td>
                             <td class="last-check-time">
                                 {% if cpu.get('created_at') %}
                                     {{ cpu.get('created_at') }}
@@ -141,6 +156,9 @@
                             </td>
                             <td style="text-align: center;">
                                 <div class="actions-cell">
+                                    <a href="/server-config?id={{ server.id }}" class="btn btn-secondary" style="text-decoration: none;">
+                                        <i class="fa-solid fa-edit"></i>
+                                    </a>
                                     <button type="button" class="delete-btn" onclick="deleteServer({{ server.id }});" title="Delete">
                                         <i class="fa-solid fa-trash"></i>
                                     </button>
