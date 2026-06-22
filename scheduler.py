@@ -257,7 +257,9 @@ def run_server_monitoring_check(server_config_id):
                     'type': metric_type,
                     'state': state,
                     'value': metric_value,
-                    'threshold': critical_threshold if state == 'critical' else warning_threshold
+                    'threshold': critical_threshold if state == 'critical' else warning_threshold,
+                    'warning': warning_threshold,
+                    'critical': critical_threshold
                 })
         
         conn.commit()

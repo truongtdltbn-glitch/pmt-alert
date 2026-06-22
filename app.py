@@ -376,6 +376,49 @@ def trigger_server_monitoring(server_id):
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route("/test-server-monitoring/<int:server_id>", methods=["POST"])
+def test_server_monitoring(server_id):
+    """Test server monitoring queries."""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            SELECT sc.*, pc.url as prometheus_url
+            FROM server_configs sc
+            JOIN prometheus_connections pc ON sc.prometheus_id = pc.id
+            WHERE sc.id = %s
+        """, (server_id,))
+        config = cursor.fetchone()
+        
+        if not config:
+            return jsonify({"status": "error", "message": "Server config not found"}), 404
+        
+        results = {}
+        
+        # Test each query
+        if config['cpu_query']:
+            value, error = query_prometheus(config['prometheus_url'], config['cpu_query'])
+            results['cpu'] = {'value': value, 'error': error}
+        
+        if config['memory_query']:
+            value, error = query_prometheus(config['prometheus_url'], config['memory_query'])
+            results['memory'] = {'value': value, 'error': error}
+        
+        if config['disk_query']:
+            value, error = query_prometheus(config['prometheus_url'], config['disk_query'])
+            results['disk'] = {'value': value, 'error': error}
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({"status": "ok", "results": results})
+    
+    except Exception as e:
+        cursor.close()
+        conn.close()
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 # --- Server Monitoring Routes ---
 @app.route("/servers", methods=["GET"])
 def servers():
