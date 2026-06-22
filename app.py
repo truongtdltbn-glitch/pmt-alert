@@ -139,7 +139,7 @@ def alerts():
     total_pages = (total + per_page - 1) // per_page
     return render_template("alerts.html", logs=logs, page=page, total_pages=total_pages)
 
-@app.route("/connections", methods=["GET", "POST", "DELETE"])
+@app.route("/connections", methods=["GET", "POST"])
 def connections():
     if request.method == "POST":
         name = request.form.get("name")
@@ -157,15 +157,6 @@ def connections():
         flash(f"Prometheus connection '{name}' added successfully.", "success")
         return redirect(url_for("connections"))
     
-    elif request.method == "DELETE":
-        conn_id = request.json.get("id")
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM prometheus_connections WHERE id = %s", (conn_id,))
-        conn.commit()
-        conn.close()
-        return jsonify({"status": "ok"})
-    
     # GET
     conn = get_db()
     cursor = conn.cursor()
@@ -175,7 +166,31 @@ def connections():
     conn.close()
     return render_template("connections.html", connections=conns)
 
-@app.route("/alert-config", methods=["GET", "POST", "DELETE"])
+@app.route("/connections/<int:conn_id>", methods=["DELETE"])
+def delete_connection(conn_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT COUNT(*) AS total FROM alert_configs WHERE prometheus_id = %s", (conn_id,))
+        if cursor.fetchone()['total'] > 0:
+            return jsonify({"status": "error", "message": "Cannot delete connection while alert rules use it."}), 400
+
+        cursor.execute("DELETE FROM prometheus_connections WHERE id = %s", (conn_id,))
+        if cursor.rowcount == 0:
+            conn.rollback()
+            return jsonify({"status": "error", "message": "Connection not found."}), 404
+
+        conn.commit()
+        return jsonify({"status": "ok"})
+    except Exception:
+        conn.rollback()
+        app.logger.exception("Failed to delete Prometheus connection %s", conn_id)
+        return jsonify({"status": "error", "message": "Unable to delete the connection."}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route("/alert-config", methods=["GET", "POST"])
 def alert_config():
     if request.method == "POST":
         data = {
@@ -220,25 +235,42 @@ def alert_config():
         
         flash(f"Alert config '{data['name']}' created successfully.", "success")
         return redirect(url_for("dashboard"))
-    
-    elif request.method == "DELETE":
-        config_id = request.json.get("id")
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM alert_configs WHERE id = %s", (config_id,))
-        cursor.execute("DELETE FROM alert_states WHERE alert_config_id = %s", (config_id,))
-        cursor.execute("DELETE FROM alert_logs WHERE alert_config_id = %s", (config_id,))
-        conn.commit()
-        conn.close()
-        load_jobs_from_db()
-        return jsonify({"status": "ok"})
-    
+
     # GET
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM prometheus_connections")
     connections = cursor.fetchall()
     cursor.close()
+    conn.close()
+    return render_template("alert_config.html", connections=connections)
+
+@app.route("/alert-config/<int:config_id>", methods=["DELETE"])
+def delete_alert_config(config_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        # Child records must be removed first because they reference alert_configs.
+        cursor.execute("DELETE FROM alert_logs WHERE alert_config_id = %s", (config_id,))
+        cursor.execute("DELETE FROM alert_states WHERE alert_config_id = %s", (config_id,))
+        cursor.execute("DELETE FROM alert_configs WHERE id = %s", (config_id,))
+
+        if cursor.rowcount == 0:
+            conn.rollback()
+            return jsonify({"status": "error", "message": "Alert rule not found."}), 404
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        app.logger.exception("Failed to delete alert rule %s", config_id)
+        return jsonify({"status": "error", "message": "Unable to delete the alert rule."}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+    load_jobs_from_db()
+    return jsonify({"status": "ok"})
+
     conn.close()
     return render_template("alert_config.html", connections=connections)
 

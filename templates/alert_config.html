@@ -1,94 +1,118 @@
 {% extends "base.html" %}
 
-{% block title %}Create Alert - Prometheus Alert{% endblock %}
+{% block title %}New Alert Rule - PMT Alerting System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr); gap: 2rem; align-items: start; }
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
+    .form-group { margin-bottom: 1.25rem; }
+    .form-group label { display: block; margin-bottom: 0.5rem; color: var(--text-primary); font-size: 0.95rem; font-weight: 500; }
+    .form-control {
+        width: 100%; padding: 0.75rem 1rem; color: var(--text-primary); font: 0.95rem var(--font-main);
+        background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: 8px; transition: 0.3s ease;
+    }
+    .form-control:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 10px var(--accent-glow); }
+    textarea.form-control { min-height: 92px; resize: vertical; }
+    select.form-control option { color: var(--text-primary); background: var(--bg-color); }
+    .info-box {
+        margin-bottom: 1.5rem; padding: 1.25rem; color: #93c5fd; font-size: 0.9rem;
+        background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2); border-radius: 12px;
+    }
+    .variable-list { margin-top: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .variable-list code { padding: 0.2rem 0.4rem; color: #60a5fa; font-family: var(--font-mono); background: rgba(0,0,0,0.25); border-radius: 4px; }
+    .form-actions { display: flex; gap: 1rem; margin-top: 0.75rem; }
+    @media (max-width: 992px) { .form-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 640px) { .field-grid { grid-template-columns: 1fr; } .form-actions { flex-direction: column; } }
+</style>
+{% endblock %}
 
 {% block content %}
-<h1 class="page-title"><i class="fas fa-bell"></i> Create Alert Configuration</h1>
+<div style="margin-bottom: 2rem;">
+    <h1>Create Alert Rule</h1>
+    <p style="color: var(--text-secondary);">Configure a PromQL query, thresholds, and Microsoft Teams delivery</p>
+</div>
 
-<div class="card">
-    <form method="POST">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-            <div class="form-group">
-                <label>Alert Name:</label>
-                <input type="text" name="name" required>
+<form action="/alert-config" method="POST">
+    <div class="form-grid">
+        <div class="glass-card">
+            <h2><i class="fa-solid fa-gear" style="color: var(--accent-primary);"></i> Rule Configuration</h2>
+            <div class="field-grid">
+                <div class="form-group">
+                    <label for="name">Rule Name</label>
+                    <input type="text" id="name" name="name" class="form-control" placeholder="e.g. API availability" required>
+                </div>
+                <div class="form-group">
+                    <label for="app_name">Application Name</label>
+                    <input type="text" id="app_name" name="app_name" class="form-control" placeholder="e.g. Payment API">
+                </div>
             </div>
-            
             <div class="form-group">
-                <label>App Name:</label>
-                <input type="text" name="app_name" placeholder="Optional">
-            </div>
-            
-            <div class="form-group">
-                <label>Prometheus Connection:</label>
-                <select name="prometheus_id" required>
-                    <option value="">-- Select --</option>
-                    {% for conn in connections %}
-                    <option value="{{ conn['id'] }}">{{ conn['name'] }} ({{ conn['url'] }})</option>
-                    {% endfor %}
+                <label for="prometheus_id">Prometheus Connection</label>
+                <select id="prometheus_id" name="prometheus_id" class="form-control" required>
+                    <option value="">Select a server</option>
+                    {% for conn in connections %}<option value="{{ conn.id }}">{{ conn.name }} ({{ conn.url }})</option>{% endfor %}
                 </select>
             </div>
-            
             <div class="form-group">
-                <label>Check Interval (minutes):</label>
-                <input type="number" name="interval_minutes" value="5" min="1">
+                <label for="query_string">PromQL Query</label>
+                <textarea id="query_string" name="query_string" class="form-control" placeholder="count(up == 0)" required></textarea>
             </div>
-            
-            <div class="form-group">
-                <label>Warning Threshold:</label>
-                <input type="number" name="warning_threshold" value="1" step="0.1">
+            <div class="field-grid">
+                <div class="form-group">
+                    <label for="interval_minutes">Check Interval (minutes)</label>
+                    <input type="number" id="interval_minutes" name="interval_minutes" class="form-control" value="5" min="1" required>
+                </div>
+                <div></div>
+                <div class="form-group">
+                    <label for="warning_threshold">Warning Threshold</label>
+                    <input type="number" id="warning_threshold" name="warning_threshold" class="form-control" value="1" min="0" step="0.1" required>
+                </div>
+                <div class="form-group">
+                    <label for="critical_threshold">Critical Threshold</label>
+                    <input type="number" id="critical_threshold" name="critical_threshold" class="form-control" value="5" min="0" step="0.1" required>
+                </div>
             </div>
-            
             <div class="form-group">
-                <label>Critical Threshold:</label>
-                <input type="number" name="critical_threshold" value="5" step="0.1">
-            </div>
-        </div>
-        
-        <div class="form-group">
-            <label>PromQL Query (e.g., <code>count(up == 0)</code>):</label>
-            <textarea name="query_string" rows="3" required placeholder='up == 0'></textarea>
-        </div>
-        
-        <div class="form-group">
-            <label>Teams Webhook URL:</label>
-            <input type="url" name="msteams_webhook" required>
-        </div>
-        
-        <div style="background: rgba(59, 130, 246, 0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
-            <h3 style="margin-bottom: 0.5rem;">Payload Template Variables:</h3>
-            <p style="font-size: 0.9rem; color: var(--text-dim);">
-                Use: {alert_name}, {app_name}, {query}, {value}, {warning_threshold}, {critical_threshold}, {timestamp}
-            </p>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-            <div class="form-group">
-                <label>Payload Name Template:</label>
-                <input type="text" name="payload_name" value="Alert: {alert_name}" required>
-            </div>
-            
-            <div class="form-group">
-                <label>Payload Error Template:</label>
-                <input type="text" name="payload_error" value="Value {value} exceeded threshold {critical_threshold}" required>
-            </div>
-            
-            <div class="form-group">
-                <label>Payload Detail Template:</label>
-                <input type="text" name="payload_detail" value="Query: {query} | Result: {value}" required>
-            </div>
-            
-            <div class="form-group">
-                <label>Payload Action Template:</label>
-                <input type="text" name="payload_action" value="Check Prometheus metrics" required>
+                <label for="msteams_webhook">Microsoft Teams Webhook URL</label>
+                <input type="url" id="msteams_webhook" name="msteams_webhook" class="form-control" placeholder="https://..." required>
             </div>
         </div>
-        
-        <div class="form-group">
-            <label>Grafana Link:</label>
-            <input type="url" name="payload_grafana" placeholder="https://grafana.example.com" required>
+
+        <div class="glass-card">
+            <h2><i class="fa-brands fa-microsoft" style="color: #60a5fa;"></i> Teams Payload</h2>
+            <div class="info-box">
+                <i class="fa-solid fa-circle-info"></i> Dynamic variables available in payload fields:
+                <div class="variable-list">
+                    <code>{alert_name}</code><code>{app_name}</code><code>{query}</code><code>{value}</code>
+                    <code>{warning_threshold}</code><code>{critical_threshold}</code><code>{timestamp}</code>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="payload_name">Name</label>
+                <input type="text" id="payload_name" name="payload_name" class="form-control" value="Alert: {alert_name}" required>
+            </div>
+            <div class="form-group">
+                <label for="payload_error">Error</label>
+                <input type="text" id="payload_error" name="payload_error" class="form-control" value="Value {value} exceeded threshold {critical_threshold}" required>
+            </div>
+            <div class="form-group">
+                <label for="payload_detail">Detail</label>
+                <textarea id="payload_detail" name="payload_detail" class="form-control" required>Query: {query} | Result: {value}</textarea>
+            </div>
+            <div class="form-group">
+                <label for="payload_action">Action</label>
+                <input type="text" id="payload_action" name="payload_action" class="form-control" value="Check Prometheus metrics" required>
+            </div>
+            <div class="form-group">
+                <label for="payload_grafana">Grafana URL</label>
+                <input type="url" id="payload_grafana" name="payload_grafana" class="form-control" placeholder="https://grafana.example.com" required>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary" style="flex: 1; justify-content: center;"><i class="fa-solid fa-circle-check"></i> Save Rule</button>
+                <a href="/" class="btn btn-secondary" style="justify-content: center;">Cancel</a>
+            </div>
         </div>
-        
-        <button type="submit" class="btn">Create Alert</button>
-    </form>
-</div>
+    </div>
+</form>
 {% endblock %}

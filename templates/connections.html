@@ -1,67 +1,93 @@
 {% extends "base.html" %}
 
-{% block title %}Connections - Prometheus Alert{% endblock %}
+{% block title %}Prometheus Connections - PMT Alerting System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .split-layout { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(420px, 1.5fr); gap: 2rem; }
+    .form-group { margin-bottom: 1.25rem; }
+    .form-group label { display: block; margin-bottom: 0.5rem; color: var(--text-primary); font-size: 0.95rem; font-weight: 500; }
+    .form-control {
+        width: 100%; padding: 0.75rem 1rem; color: var(--text-primary); font: 0.95rem var(--font-main);
+        background: rgba(255,255,255,0.03); border: 1px solid var(--panel-border); border-radius: 8px; transition: 0.3s ease;
+    }
+    .form-control:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 10px var(--accent-glow); }
+    .connection-list { display: flex; flex-direction: column; gap: 1rem; }
+    .connection-item {
+        padding: 1.25rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+        background: rgba(255,255,255,0.02); border: 1px solid var(--panel-border); border-radius: 12px;
+    }
+    .conn-info { min-width: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+    .conn-name { font: 600 1.1rem var(--font-mono); }
+    .conn-url { overflow-wrap: anywhere; color: var(--text-secondary); font: 0.85rem var(--font-mono); }
+    .conn-meta { color: var(--text-secondary); font-size: 0.8rem; }
+    @media (max-width: 992px) { .split-layout { grid-template-columns: 1fr; } }
+    @media (max-width: 560px) { .connection-item { align-items: flex-start; flex-direction: column; } }
+</style>
+{% endblock %}
 
 {% block content %}
-<h1 class="page-title"><i class="fas fa-plug"></i> Prometheus Connections</h1>
-
-<div class="card">
-    <h2 style="margin-bottom: 1rem;">Add New Connection</h2>
-    <form method="POST">
-        <div class="form-group">
-            <label>Name:</label>
-            <input type="text" name="name" required>
-        </div>
-        
-        <div class="form-group">
-            <label>Prometheus URL:</label>
-            <input type="url" name="url" placeholder="https://prometheus.example.com/api/v1/query" required>
-        </div>
-        
-        <button type="submit" class="btn">Add Connection</button>
-    </form>
+<div style="margin-bottom: 2rem;">
+    <h1>Prometheus Server Connections</h1>
+    <p style="color: var(--text-secondary);">Manage Prometheus endpoints used to query metrics</p>
 </div>
 
-<div class="card">
-    <h2 style="margin-bottom: 1rem;">Active Connections</h2>
-    
-    {% if connections %}
-    <table>
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>URL</th>
-                <th>Created</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for conn in connections %}
-            <tr>
-                <td>{{ conn['name'] }}</td>
-                <td style="word-break: break-all; font-size: 0.9rem;">{{ conn['url'] }}</td>
-                <td>{{ conn['created_at'] }}</td>
-                <td>
-                    <button onclick="deleteConnection({{ conn['id'] }})" class="btn btn-danger" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">Delete</button>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <p style="color: var(--text-dim); text-align: center; padding: 2rem;">No connections found.</p>
-    {% endif %}
+<div class="split-layout">
+    <div class="glass-card">
+        <h2><i class="fa-solid fa-cloud-arrow-up" style="color: var(--accent-primary);"></i> Add Connection</h2>
+        <form action="/connections" method="POST">
+            <div class="form-group">
+                <label for="name">Connection Name</label>
+                <input type="text" id="name" name="name" class="form-control" placeholder="e.g. Prometheus Production" required>
+            </div>
+            <div class="form-group">
+                <label for="url">Prometheus Server URL</label>
+                <input type="url" id="url" name="url" class="form-control" placeholder="https://prometheus.example.com" required>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
+                <i class="fa-solid fa-floppy-disk"></i> Save Connection
+            </button>
+        </form>
+    </div>
+
+    <div class="glass-card">
+        <h2><i class="fa-solid fa-server" style="color: var(--success);"></i> Configured Servers</h2>
+        {% if connections %}
+            <div class="connection-list">
+                {% for conn in connections %}
+                    <div class="connection-item">
+                        <div class="conn-info">
+                            <span class="conn-name">{{ conn.name }}</span>
+                            <span class="conn-url">{{ conn.url }}</span>
+                            <span class="conn-meta"><i class="fa-regular fa-clock"></i> Added {{ conn.created_at }}</span>
+                        </div>
+                        <button type="button" onclick="deleteConnection({{ conn.id }})" class="btn btn-danger" title="Delete connection">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div style="padding: 3rem 1rem; text-align: center; color: var(--text-secondary);">
+                <i class="fa-solid fa-server" style="display: block; margin-bottom: 1rem; font-size: 3rem; opacity: 0.45;"></i>
+                No connections configured yet.
+            </div>
+        {% endif %}
+    </div>
 </div>
 
 <script>
 function deleteConnection(id) {
-    if (confirm('Are you sure?')) {
-        fetch('/connections', {
-            method: 'DELETE',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({id: id})
-        }).then(() => location.reload());
-    }
+    if (!confirm('Are you sure you want to delete this connection?')) return;
+    fetch(`/connections/${id}`, {
+        method: 'DELETE'
+    }).then(async response => {
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(result.message || 'Unable to delete connection');
+        }
+        location.reload();
+    }).catch(error => alert(error.message));
 }
 </script>
 {% endblock %}

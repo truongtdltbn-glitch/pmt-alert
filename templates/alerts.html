@@ -1,55 +1,63 @@
 {% extends "base.html" %}
 
-{% block title %}Alerts - Prometheus Alert{% endblock %}
+{% block title %}History Logs - PMT Alerting System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .table-container { overflow-x: auto; }
+    .logs-table { width: 100%; border-collapse: collapse; text-align: left; }
+    .logs-table th {
+        padding: 1rem; color: var(--text-primary); font: 600 0.85rem var(--font-mono); text-transform: uppercase; letter-spacing: 0.04em;
+        background: rgba(255,255,255,0.05); border-bottom: 1px solid var(--panel-border); white-space: nowrap;
+    }
+    .logs-table td { padding: 1rem; color: var(--text-primary); font-size: 0.92rem; border-bottom: 1px solid rgba(255,255,255,0.03); vertical-align: middle; }
+    .logs-table tr:hover { background: rgba(255,255,255,0.02); }
+    .log-time { color: var(--text-secondary) !important; font: 0.82rem var(--font-mono) !important; white-space: nowrap; }
+    .log-message { min-width: 240px; max-width: 440px; color: var(--text-secondary) !important; overflow-wrap: anywhere; }
+    .metric-value { font-family: var(--font-mono); font-weight: 600; }
+    .badge-ok { color: var(--success); background: var(--success-glow); border: 1px solid rgba(16,185,129,0.3); }
+    .pagination { margin-top: 1.5rem; display: flex; align-items: center; justify-content: center; gap: 1rem; }
+    .page-info { color: var(--text-secondary); font-family: var(--font-mono); font-size: 0.9rem; }
+</style>
+{% endblock %}
 
 {% block content %}
-<h1 class="page-title"><i class="fas fa-exclamation-triangle"></i> Alert History</h1>
+<div style="margin-bottom: 2rem;">
+    <h1>History Audit Logs</h1>
+    <p style="color: var(--text-secondary);">History of evaluated rules, state changes, and notification attempts</p>
+</div>
 
-<div class="card">
+<div class="glass-card">
     {% if logs %}
-    <table>
-        <thead>
-            <tr>
-                <th>Alert</th>
-                <th>State</th>
-                <th>Value</th>
-                <th>Threshold</th>
-                <th>Message</th>
-                <th>Time</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for log in logs %}
-            <tr>
-                <td>{{ log['alert_name'] }}</td>
-                <td>
-                    <span class="status status-{{ log['alert_state'] }}">
-                        {{ log['alert_state']|upper }}
-                    </span>
-                </td>
-                <td>{{ "%.2f"|format(log['query_result_count'] or 0) }}</td>
-                <td>{{ "%.2f"|format(log['threshold'] or 0) }}</td>
-                <td style="max-width: 300px; word-break: break-word;">{{ log['message'] or 'N/A' }}</td>
-                <td>{{ log['created_at'] }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    
-    <div style="margin-top: 2rem; text-align: center;">
-        {% if page > 1 %}
-        <a href="/alerts?page={{ page-1 }}" class="btn">← Previous</a>
+        <div class="table-container">
+            <table class="logs-table">
+                <thead><tr><th>Time</th><th>Rule Name</th><th>State</th><th>Value</th><th>Threshold</th><th>Description / Message</th></tr></thead>
+                <tbody>
+                    {% for log in logs %}
+                        <tr>
+                            <td class="log-time">{{ log.created_at }}</td>
+                            <td style="font-weight: 600;">{{ log.alert_name }}</td>
+                            <td><span class="badge badge-{% if log.alert_state == 'ok' %}ok{% else %}{{ log.alert_state }}{% endif %}">{{ log.alert_state|upper }}</span></td>
+                            <td class="metric-value">{{ "%.2f"|format(log.query_result_count or 0) }}</td>
+                            <td class="metric-value">{{ "%.2f"|format(log.threshold or 0) }}</td>
+                            <td class="log-message">{{ log.message or 'N/A' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if total_pages > 1 %}
+            <div class="pagination">
+                {% if page > 1 %}<a href="/alerts?page={{ page - 1 }}" class="btn btn-secondary"><i class="fa-solid fa-chevron-left"></i> Previous</a>{% endif %}
+                <span class="page-info">Page {{ page }} of {{ total_pages }}</span>
+                {% if page < total_pages %}<a href="/alerts?page={{ page + 1 }}" class="btn btn-secondary">Next <i class="fa-solid fa-chevron-right"></i></a>{% endif %}
+            </div>
         {% endif %}
-        
-        <span style="margin: 0 1rem; color: var(--text-dim);">Page {{ page }} of {{ total_pages }}</span>
-        
-        {% if page < total_pages %}
-        <a href="/alerts?page={{ page+1 }}" class="btn">Next →</a>
-        {% endif %}
-    </div>
-    
     {% else %}
-    <p style="color: var(--text-dim); text-align: center; padding: 2rem;">No alerts logged yet.</p>
+        <div style="padding: 4rem 2rem; color: var(--text-secondary); text-align: center;">
+            <i class="fa-solid fa-folder-open" style="display: block; margin-bottom: 1.5rem; font-size: 3rem; opacity: 0.45;"></i>
+            No logs recorded yet. Once rules are evaluated, history entries will display here.
+        </div>
     {% endif %}
 </div>
 {% endblock %}

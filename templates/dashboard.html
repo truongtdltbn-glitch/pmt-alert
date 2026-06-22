@@ -268,13 +268,19 @@
 
 <script>
     function deleteConfig(id) {
-        if (confirm('Are you sure you want to delete this alert configuration?')) {
-            fetch('/alert-config', {
-                method: 'DELETE',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({id: id})
-            }).then(() => location.reload());
-        }
+        if (!confirm('Are you sure you want to delete this alert configuration?')) return;
+
+        fetch(`/alert-config/${id}`, {
+            method: 'DELETE'
+        })
+            .then(async response => {
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(result.message || 'Unable to delete the alert rule.');
+                }
+                location.reload();
+            })
+            .catch(error => alert(error.message));
     }
 
     document.addEventListener('DOMContentLoaded', () => {

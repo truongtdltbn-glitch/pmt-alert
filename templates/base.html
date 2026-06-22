@@ -297,10 +297,10 @@
                 PMT ALERT
             </a>
             <ul class="nav-links">
-                <li><a href="/" class="{% if active_page == 'dashboard' or active_page == '' %}active{% endif %}"><i class="fa-solid fa-chart-pie"></i> Dashboard</a></li>
-                <li><a href="/connections" class="{% if active_page == 'connections' %}active{% endif %}"><i class="fa-solid fa-server"></i> Prometheus Servers</a></li>
-                <li><a href="/alert-config" class="{% if active_page == 'alert-config' %}active{% endif %}"><i class="fa-solid fa-sliders"></i> Alert Rules</a></li>
-                <li><a href="/alerts" class="{% if active_page == 'alerts' %}active{% endif %}"><i class="fa-solid fa-list-check"></i> History Logs</a></li>
+                <li><a href="/" class="{% if request.path == '/' %}active{% endif %}"><i class="fa-solid fa-chart-pie"></i> Dashboard</a></li>
+                <li><a href="/connections" class="{% if request.path == '/connections' %}active{% endif %}"><i class="fa-solid fa-server"></i> Prometheus Servers</a></li>
+                <li><a href="/alert-config" class="{% if request.path == '/alert-config' %}active{% endif %}"><i class="fa-solid fa-sliders"></i> Alert Rules</a></li>
+                <li><a href="/alerts" class="{% if request.path == '/alerts' or request.path.startswith('/logs/') %}active{% endif %}"><i class="fa-solid fa-list-check"></i> History Logs</a></li>
                 <li><button id="theme-toggle" class="btn btn-secondary" style="padding: 0.5rem 1rem; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;"><i class="fa-solid fa-sun" id="theme-icon"></i></button></li>
                 {% if session.get('logged_in') %}
                 <li><a href="/logout" style="color: var(--critical);"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>

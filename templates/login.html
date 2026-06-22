@@ -1,46 +1,131 @@
-{% extends "base.html" %}
-
-{% block title %}Login - Prometheus Alert{% endblock %}
-
-{% block extra_css %}
-<style>
-    body {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-    
-    .container {
-        max-width: 400px;
-        margin: 0;
-    }
-</style>
-{% endblock %}
-
-{% block content %}
-<div class="card" style="text-align: center; margin-top: 5rem;">
-    <h1 style="margin-bottom: 2rem;"><i class="fas fa-lock"></i> Login</h1>
-    
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - PMT Alerting System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: rgba(17, 24, 39, 0.7);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --accent-primary: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.5);
+            --critical: #ef4444;
+            --font-main: 'Outfit', sans-serif;
+            --font-mono: 'Space Grotesk', sans-serif;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            min-height: 100vh;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-primary);
+            font-family: var(--font-main);
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(at 20% 20%, rgba(59, 130, 246, 0.12) 0, transparent 50%),
+                radial-gradient(at 80% 80%, rgba(16, 185, 129, 0.08) 0, transparent 50%);
+        }
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            padding: 2.5rem;
+            text-align: center;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(20px);
+        }
+        .logo-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+            font: 700 2rem var(--font-mono);
+            background: linear-gradient(135deg, #60a5fa, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle { margin-bottom: 2rem; color: var(--text-secondary); font-size: 0.95rem; }
+        .form-group { margin-bottom: 1.5rem; text-align: left; }
+        .form-group label { display: block; margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.9rem; font-weight: 500; }
+        .input-wrapper { position: relative; }
+        .input-wrapper i { position: absolute; top: 50%; left: 1rem; transform: translateY(-50%); color: var(--text-secondary); }
+        .form-control {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            color: var(--text-primary);
+            font: 1rem var(--font-main);
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--panel-border);
+            border-radius: 10px;
+            transition: 0.3s ease;
+        }
+        .form-control:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 12px var(--accent-glow); }
+        .btn-submit {
+            width: 100%;
+            margin-top: 1rem;
+            padding: 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            color: white;
+            font: 600 1rem var(--font-main);
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+            cursor: pointer;
+            transition: 0.2s ease;
+        }
+        .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4); }
+        .alert-toast {
+            margin-bottom: 1.5rem;
+            padding: 0.85rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #fee2e2;
+            font-size: 0.9rem;
+            text-align: left;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid var(--critical);
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo-header"><i class="fa-solid fa-chart-line" style="color: #60a5fa;"></i> PMT ALERT</div>
+        <div class="subtitle">System Administration Access</div>
+        {% with messages = get_flashed_messages(with_categories=true) %}
             {% for category, message in messages %}
-                <div class="alert alert-{{ category }}">{{ message }}</div>
+                <div class="alert-toast"><i class="fa-solid fa-triangle-exclamation"></i><span>{{ message }}</span></div>
             {% endfor %}
-        {% endif %}
-    {% endwith %}
-    
-    <form method="POST">
-        <div class="form-group">
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username" required autofocus>
-        </div>
-        
-        <div class="form-group">
-            <label for="password">Password:</label>
-            <input type="password" id="password" name="password" required>
-        </div>
-        
-        <button type="submit" class="btn" style="width: 100%;">Login</button>
-    </form>
-</div>
-{% endblock %}
+        {% endwith %}
+        <form action="/login" method="POST">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <div class="input-wrapper"><i class="fa-solid fa-user"></i><input type="text" id="username" name="username" class="form-control" placeholder="Enter username" required autofocus autocomplete="username"></div>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <div class="input-wrapper"><i class="fa-solid fa-lock"></i><input type="password" id="password" name="password" class="form-control" placeholder="Enter password" required autocomplete="current-password"></div>
+            </div>
+            <button type="submit" class="btn-submit"><i class="fa-solid fa-right-to-bracket"></i> Sign In</button>
+        </form>
+    </div>
+</body>
+</html>
