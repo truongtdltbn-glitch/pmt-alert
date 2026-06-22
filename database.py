@@ -92,6 +92,7 @@ def init_db():
     CREATE TABLE IF NOT EXISTS server_configs (
         id                      SERIAL PRIMARY KEY,
         name                    TEXT NOT NULL UNIQUE,
+        target                  TEXT,
         prometheus_id           INTEGER NOT NULL,
         cpu_query               TEXT,
         memory_query            TEXT,

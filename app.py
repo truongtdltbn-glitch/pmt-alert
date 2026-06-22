@@ -407,6 +407,7 @@ def server_config():
         config_id = request.form.get("config_id")  # If editing
         data = {
             'name': request.form.get("name"),
+            'target': request.form.get("target"),
             'prometheus_id': request.form.get("prometheus_id"),
             'cpu_query': request.form.get("cpu_query"),
             'memory_query': request.form.get("memory_query"),
@@ -435,13 +436,13 @@ def server_config():
             if config_id:  # UPDATE
                 cursor.execute("""
                     UPDATE server_configs
-                    SET name=%s, prometheus_id=%s, cpu_query=%s, memory_query=%s, disk_query=%s,
+                    SET name=%s, target=%s, prometheus_id=%s, cpu_query=%s, memory_query=%s, disk_query=%s,
                         cpu_warning_threshold=%s, cpu_critical_threshold=%s,
                         memory_warning_threshold=%s, memory_critical_threshold=%s,
                         disk_warning_threshold=%s, disk_critical_threshold=%s,
                         msteams_webhook=%s
                     WHERE id=%s
-                """, (data['name'], data['prometheus_id'], data['cpu_query'], data['memory_query'],
+                """, (data['name'], data['target'], data['prometheus_id'], data['cpu_query'], data['memory_query'],
                       data['disk_query'], data['cpu_warning_threshold'], data['cpu_critical_threshold'],
                       data['memory_warning_threshold'], data['memory_critical_threshold'],
                       data['disk_warning_threshold'], data['disk_critical_threshold'],
@@ -457,12 +458,12 @@ def server_config():
             else:  # INSERT
                 cursor.execute("""
                     INSERT INTO server_configs 
-                    (name, prometheus_id, cpu_query, memory_query, disk_query,
+                    (name, target, prometheus_id, cpu_query, memory_query, disk_query,
                      cpu_warning_threshold, cpu_critical_threshold,
                      memory_warning_threshold, memory_critical_threshold,
                      disk_warning_threshold, disk_critical_threshold,
                      msteams_webhook)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id
                 """, tuple(data.values()))
                 
@@ -509,6 +510,68 @@ def get_servers_api():
     cursor.close()
     conn.close()
     return jsonify([{"id": s['id'], "name": s['name']} for s in servers])
+
+@app.route("/api/prometheus-targets", methods=["GET"])
+def get_prometheus_targets():
+    """API endpoint to fetch targets from Prometheus."""
+    prometheus_id = request.args.get('prometheus_id')
+    
+    if not prometheus_id:
+        return jsonify({"status": "error", "message": "prometheus_id required"}), 400
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("SELECT url FROM prometheus_connections WHERE id = %s", (prometheus_id,))
+        result = cursor.fetchone()
+        
+        if not result:
+            cursor.close()
+            conn.close()
+            return jsonify({"status": "error", "message": "Prometheus connection not found"}), 404
+        
+        prometheus_url = result['url']
+        
+        # Fetch targets from Prometheus
+        targets_url = f"{prometheus_url.rstrip('/')}/api/v1/targets"
+        response = requests.get(targets_url, verify=False, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('status') == 'success':
+                targets_data = data.get('data', {})
+                active_targets = targets_data.get('activeTargets', [])
+                
+                # Extract unique target labels
+                targets = []
+                seen = set()
+                
+                for target in active_targets:
+                    labels = target.get('labels', {})
+                    job = labels.get('job', '')
+                    instance = labels.get('instance', '')
+                    
+                    if instance and instance not in seen:
+                        targets.append({
+                            "instance": instance,
+                            "job": job,
+                            "labels": labels
+                        })
+                        seen.add(instance)
+                
+                cursor.close()
+                conn.close()
+                return jsonify({"status": "success", "targets": targets})
+        
+        cursor.close()
+        conn.close()
+        return jsonify({"status": "error", "message": "Failed to fetch targets from Prometheus"}), 500
+    
+    except Exception as e:
+        cursor.close()
+        conn.close()
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/server-config/<int:config_id>", methods=["DELETE"])
 def delete_server_config(config_id):

@@ -38,15 +38,21 @@
             <h2><i class="fa-solid fa-server" style="color: var(--accent-primary);"></i> Server Configuration</h2>
             <div class="form-group">
                 <label for="name">Server Name</label>
-                <select id="name" name="name" class="form-control" required>
-                    <option value="">Select a Server</option>
-                </select>
+                <input type="text" id="name" name="name" class="form-control" placeholder="e.g. web-server-01" required>
             </div>
+
             <div class="form-group">
                 <label for="prometheus_id">Prometheus Connection</label>
-                <select id="prometheus_id" name="prometheus_id" class="form-control" required>
+                <select id="prometheus_id" name="prometheus_id" class="form-control" onchange="handlePrometheusChange()" required>
                     <option value="">Select a Prometheus server</option>
                     {% for conn in connections %}<option value="{{ conn.id }}">{{ conn.name }} ({{ conn.url }})</option>{% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="target">Target</label>
+                <select id="target" name="target" class="form-control" required>
+                    <option value="">Select a Target</option>
                 </select>
             </div>
 
@@ -131,38 +137,52 @@
 </form>
 
 <script>
-    // Load servers on page load
-    async function loadServers() {
+    // Handle Prometheus connection change
+    async function handlePrometheusChange() {
+        const prometheusId = document.getElementById('prometheus_id').value;
+        const targetSelect = document.getElementById('target');
+        
+        // Clear target dropdown
+        targetSelect.innerHTML = '<option value="">Select a Target</option>';
+        targetSelect.disabled = true;
+        
+        if (!prometheusId) return;
+        
         try {
-            const response = await fetch('/api/servers');
-            const servers = await response.json();
-            const select = document.getElementById('name');
+            const response = await fetch(`/api/prometheus-targets?prometheus_id=${prometheusId}`);
+            const data = await response.json();
             
-            // Clear existing options except first one
-            while (select.options.length > 1) {
-                select.remove(1);
+            if (data.status === 'success' && data.targets) {
+                data.targets.forEach(target => {
+                    const option = document.createElement('option');
+                    option.value = target.instance;
+                    option.textContent = `${target.instance} (${target.job})`;
+                    targetSelect.appendChild(option);
+                });
+                
+                // If editing, pre-select current target
+                {% if config %}
+                    targetSelect.value = '{{ config.target }}';
+                {% endif %}
+                
+                targetSelect.disabled = false;
+            } else {
+                alert('Failed to load targets: ' + (data.message || 'Unknown error'));
             }
-            
-            // Add servers to dropdown
-            servers.forEach(server => {
-                const option = document.createElement('option');
-                option.value = server.name;
-                option.textContent = server.name;
-                select.appendChild(option);
-            });
-            
-            // If editing, pre-select current server
-            {% if config %}
-                select.value = '{{ config.name }}';
-            {% endif %}
         } catch (error) {
-            console.error('Error loading servers:', error);
+            console.error('Error loading targets:', error);
+            alert('Error loading targets from Prometheus');
         }
     }
     
-    // Load servers on page load
+    // Load Prometheus config on page load
     document.addEventListener('DOMContentLoaded', function() {
-        loadServers();
+        // If editing, pre-fill and load targets
+        {% if config %}
+            document.getElementById('name').value = '{{ config.name }}';
+            document.getElementById('prometheus_id').value = '{{ config.prometheus_id }}';
+            handlePrometheusChange();
+        {% endif %}
     });
 </script>
 {% endblock %}
