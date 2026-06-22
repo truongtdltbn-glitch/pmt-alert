@@ -10,7 +10,7 @@ if hasattr(sys.stderr, 'reconfigure'):
 
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from database import get_db, init_db, cleanup_old_logs
-from scheduler import run_alert_check, query_prometheus
+from scheduler import run_alert_check, run_server_monitoring_check, query_prometheus
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 import urllib3
@@ -28,10 +28,10 @@ def load_jobs_from_db():
 
     conn = get_db()
     cursor = conn.cursor()
+    
+    # Load alert checking jobs
     cursor.execute("SELECT id, name, interval_minutes FROM alert_configs WHERE status = 'active'")
     configs = cursor.fetchall()
-    cursor.close()
-    conn.close()
 
     for config in configs:
         job_id = f"alert_job_{config['id']}"
@@ -46,6 +46,22 @@ def load_jobs_from_db():
         )
         print(f"Scheduled alert job for '{config['name']}' every {interval} minutes.")
 
+    # Load server monitoring jobs
+    cursor.execute("SELECT id, name FROM server_configs WHERE status = 'active'")
+    servers = cursor.fetchall()
+    
+    for server in servers:
+        job_id = f"server_job_{server['id']}"
+        scheduler.add_job(
+            func=run_server_monitoring_check,
+            trigger=IntervalTrigger(minutes=5),
+            args=[server['id']],
+            id=job_id,
+            name=f"Monitor server: {server['name']}",
+            replace_existing=True
+        )
+        print(f"Scheduled server monitoring job for '{server['name']}' every 5 minutes.")
+
     # Schedule daily log cleanup
     scheduler.add_job(
         func=cleanup_old_logs,
@@ -57,6 +73,9 @@ def load_jobs_from_db():
         replace_existing=True,
         kwargs={'days': 7}
     )
+    
+    cursor.close()
+    conn.close()
 
 # --- Authentication Middleware & Routes ---
 @app.before_request
@@ -311,6 +330,156 @@ def test_prometheus():
         return jsonify({"status": "error", "message": error}), 400
     else:
         return jsonify({"status": "ok", "value": value})
+
+# --- Server Monitoring Routes ---
+@app.route("/servers", methods=["GET"])
+def servers():
+    """Display list of monitored servers with current metrics."""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT sc.*, p.name as prom_name
+        FROM server_configs sc
+        LEFT JOIN prometheus_connections p ON sc.prometheus_id = p.id
+        ORDER BY sc.created_at DESC
+    """)
+    server_configs = cursor.fetchall()
+    
+    # Get latest metrics for each server
+    server_metrics = {}
+    for server in server_configs:
+        cursor.execute("""
+            SELECT metric_type, metric_value, current_state
+            FROM server_metrics
+            WHERE server_config_id = %s
+            ORDER BY created_at DESC
+            LIMIT 3
+        """, (server['id'],))
+        metrics = cursor.fetchall()
+        server_metrics[server['id']] = {m['metric_type']: m for m in metrics}
+    
+    cursor.close()
+    conn.close()
+    
+    return render_template("servers.html", servers=server_configs, metrics=server_metrics)
+
+@app.route("/server-config", methods=["GET", "POST"])
+def server_config():
+    """Create new server monitoring configuration."""
+    if request.method == "POST":
+        data = {
+            'name': request.form.get("name"),
+            'prometheus_id': request.form.get("prometheus_id"),
+            'cpu_query': request.form.get("cpu_query"),
+            'memory_query': request.form.get("memory_query"),
+            'disk_query': request.form.get("disk_query"),
+            'cpu_warning_threshold': request.form.get("cpu_warning_threshold", 70, type=float),
+            'cpu_critical_threshold': request.form.get("cpu_critical_threshold", 90, type=float),
+            'memory_warning_threshold': request.form.get("memory_warning_threshold", 75, type=float),
+            'memory_critical_threshold': request.form.get("memory_critical_threshold", 90, type=float),
+            'disk_warning_threshold': request.form.get("disk_warning_threshold", 80, type=float),
+            'disk_critical_threshold': request.form.get("disk_critical_threshold", 95, type=float),
+            'msteams_webhook': request.form.get("msteams_webhook"),
+        }
+        
+        if not all([data['name'], data['prometheus_id'], data['msteams_webhook']]):
+            flash("Name, Prometheus connection, and Teams webhook are required.", "error")
+            return redirect(url_for("server_config"))
+        
+        if not any([data['cpu_query'], data['memory_query'], data['disk_query']]):
+            flash("At least one query (CPU, Memory, or Disk) is required.", "error")
+            return redirect(url_for("server_config"))
+        
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("""
+                INSERT INTO server_configs 
+                (name, prometheus_id, cpu_query, memory_query, disk_query,
+                 cpu_warning_threshold, cpu_critical_threshold,
+                 memory_warning_threshold, memory_critical_threshold,
+                 disk_warning_threshold, disk_critical_threshold,
+                 msteams_webhook)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, tuple(data.values()))
+            
+            config_id = cursor.fetchone()['id']
+            conn.commit()
+            
+            # Reload scheduler
+            load_jobs_from_db()
+            
+            flash(f"Server configuration '{data['name']}' created successfully.", "success")
+            return redirect(url_for("servers"))
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error creating server config: {str(e)}", "error")
+        finally:
+            cursor.close()
+            conn.close()
+    
+    # GET
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM prometheus_connections")
+    connections = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return render_template("server_config.html", connections=connections)
+
+@app.route("/server-config/<int:config_id>", methods=["DELETE"])
+def delete_server_config(config_id):
+    """Delete server monitoring configuration."""
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        # Delete related metrics
+        cursor.execute("DELETE FROM server_metrics WHERE server_config_id = %s", (config_id,))
+        cursor.execute("DELETE FROM server_configs WHERE id = %s", (config_id,))
+
+        if cursor.rowcount == 0:
+            conn.rollback()
+            return jsonify({"status": "error", "message": "Server config not found."}), 404
+
+        conn.commit()
+        
+        # Reload scheduler
+        load_jobs_from_db()
+        
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        conn.rollback()
+        app.logger.exception("Failed to delete server config %s", config_id)
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route("/api/server-metrics/<int:config_id>")
+def api_server_metrics(config_id):
+    """Get latest metrics for a server (JSON API)."""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT metric_type, metric_value, current_state, created_at
+        FROM server_metrics
+        WHERE server_config_id = %s
+        ORDER BY created_at DESC
+        LIMIT 10
+    """, (config_id,))
+    metrics = cursor.fetchall()
+    
+    cursor.close()
+    conn.close()
+    
+    return jsonify({
+        "status": "ok",
+        "metrics": [dict(m) for m in metrics]
+    })
 
 if __name__ == "__main__":
     init_db()

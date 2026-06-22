@@ -192,3 +192,105 @@ def run_alert_check(alert_config_id):
         logger.error(f"Error in alert check: {str(e)}")
     finally:
         conn.close()
+
+def run_server_monitoring_check(server_config_id):
+    """Check server metrics and send alerts if thresholds exceeded."""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        # Get server config
+        cursor.execute("""
+            SELECT sc.*, pc.url as prometheus_url
+            FROM server_configs sc
+            JOIN prometheus_connections pc ON sc.prometheus_id = pc.id
+            WHERE sc.id = %s
+        """, (server_config_id,))
+        config = cursor.fetchone()
+        
+        if not config:
+            logger.error(f"Server config {server_config_id} not found")
+            return
+        
+        # Query metrics
+        metrics = {}
+        metric_types = {
+            'cpu': (config['cpu_query'], config['cpu_warning_threshold'], config['cpu_critical_threshold']),
+            'memory': (config['memory_query'], config['memory_warning_threshold'], config['memory_critical_threshold']),
+            'disk': (config['disk_query'], config['disk_warning_threshold'], config['disk_critical_threshold'])
+        }
+        
+        alerts_to_send = []
+        
+        for metric_type, (query, warning_threshold, critical_threshold) in metric_types.items():
+            if not query:
+                continue
+            
+            metric_value, query_error = query_prometheus(config['prometheus_url'], query)
+            
+            # Determine state
+            state = 'ok'
+            if query_error:
+                state = 'error'
+            elif metric_value >= critical_threshold:
+                state = 'critical'
+            elif metric_value >= warning_threshold:
+                state = 'warning'
+            
+            # Store metric
+            cursor.execute("""
+                INSERT INTO server_metrics 
+                (server_config_id, metric_type, metric_value, current_state)
+                VALUES (%s, %s, %s, %s)
+            """, (server_config_id, metric_type, metric_value, state))
+            
+            metrics[metric_type] = {
+                'value': metric_value,
+                'state': state,
+                'warning': warning_threshold,
+                'critical': critical_threshold
+            }
+            
+            # Queue alert if needed
+            if state in ['critical', 'warning']:
+                alerts_to_send.append({
+                    'type': metric_type,
+                    'state': state,
+                    'value': metric_value,
+                    'threshold': critical_threshold if state == 'critical' else warning_threshold
+                })
+        
+        conn.commit()
+        
+        # Send alerts if any
+        if alerts_to_send:
+            for alert in alerts_to_send:
+                payload = {
+                    "@type": "MessageCard",
+                    "@context": "https://schema.org/extensions",
+                    "summary": f"Server Alert: {config['name']} - {alert['type'].upper()}",
+                    "themeColor": "FF0000" if alert['state'] == 'critical' else "FFA500",
+                    "sections": [
+                        {
+                            "activityTitle": f"{config['name']} - {alert['type'].upper()} Alert",
+                            "facts": [
+                                {"name": "Status", "value": alert['state'].upper()},
+                                {"name": "Current Value", "value": f"{alert['value']:.2f}%"},
+                                {"name": "Threshold", "value": f"{alert['threshold']:.2f}%"},
+                                {"name": "Timestamp", "value": datetime.datetime.now().isoformat()}
+                            ],
+                            "markdown": True
+                        }
+                    ]
+                }
+                
+                send_teams_alert(config['msteams_webhook'], payload)
+            
+            logger.info(f"Server monitoring alerts sent for {config['name']}: {[a['type'] for a in alerts_to_send]}")
+        
+        logger.info(f"Server monitoring completed: {config['name']} → CPU: {metrics.get('cpu', {}).get('value', 'N/A')}%, Memory: {metrics.get('memory', {}).get('value', 'N/A')}%, Disk: {metrics.get('disk', {}).get('value', 'N/A')}%")
+        
+    except Exception as e:
+        logger.error(f"Error in server monitoring: {str(e)}")
+    finally:
+        conn.close()

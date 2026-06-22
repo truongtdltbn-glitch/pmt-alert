@@ -87,6 +87,41 @@ def init_db():
     )
     """)
 
+    # Server Configurations table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS server_configs (
+        id                      SERIAL PRIMARY KEY,
+        name                    TEXT NOT NULL UNIQUE,
+        prometheus_id           INTEGER NOT NULL,
+        cpu_query               TEXT,
+        memory_query            TEXT,
+        disk_query              TEXT,
+        cpu_warning_threshold   REAL DEFAULT 70,
+        cpu_critical_threshold  REAL DEFAULT 90,
+        memory_warning_threshold REAL DEFAULT 75,
+        memory_critical_threshold REAL DEFAULT 90,
+        disk_warning_threshold  REAL DEFAULT 80,
+        disk_critical_threshold REAL DEFAULT 95,
+        msteams_webhook         TEXT NOT NULL,
+        status                  TEXT DEFAULT 'active',
+        created_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (prometheus_id) REFERENCES prometheus_connections(id)
+    )
+    """)
+
+    # Server Metrics table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS server_metrics (
+        id                  SERIAL PRIMARY KEY,
+        server_config_id    INTEGER NOT NULL,
+        metric_type         TEXT,
+        metric_value        REAL,
+        current_state       TEXT DEFAULT 'ok',
+        created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (server_config_id) REFERENCES server_configs(id)
+    )
+    """)
+
     conn.commit()
     conn.close()
     print("Database initialized successfully!")
