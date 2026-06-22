@@ -212,6 +212,7 @@ def delete_connection(conn_id):
 @app.route("/alert-config", methods=["GET", "POST"])
 def alert_config():
     if request.method == "POST":
+        config_id = request.form.get("config_id")  # If editing
         data = {
             'name': request.form.get("name"),
             'app_name': request.form.get("app_name"),
@@ -234,35 +235,70 @@ def alert_config():
         
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO alert_configs 
-            (name, app_name, prometheus_id, query_string, interval_minutes, warning_threshold, 
-             critical_threshold, msteams_webhook, payload_name, payload_error, payload_detail, 
-             payload_action, payload_grafana)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """, tuple(data.values()))
         
-        # Initialize alert state
-        config_id = cursor.fetchone()['id']
-        cursor.execute("INSERT INTO alert_states (alert_config_id) VALUES (%s)", (config_id,))
-        conn.commit()
-        conn.close()
+        try:
+            if config_id:  # UPDATE
+                cursor.execute("""
+                    UPDATE alert_configs
+                    SET name=%s, app_name=%s, prometheus_id=%s, query_string=%s, interval_minutes=%s,
+                        warning_threshold=%s, critical_threshold=%s, msteams_webhook=%s,
+                        payload_name=%s, payload_error=%s, payload_detail=%s, payload_action=%s, payload_grafana=%s
+                    WHERE id=%s
+                """, (data['name'], data['app_name'], data['prometheus_id'], data['query_string'],
+                      data['interval_minutes'], data['warning_threshold'], data['critical_threshold'],
+                      data['msteams_webhook'], data['payload_name'], data['payload_error'],
+                      data['payload_detail'], data['payload_action'], data['payload_grafana'], config_id))
+                
+                if cursor.rowcount == 0:
+                    conn.rollback()
+                    flash("Alert config not found.", "error")
+                else:
+                    conn.commit()
+                    load_jobs_from_db()
+                    flash(f"Alert config '{data['name']}' updated successfully.", "success")
+            else:  # INSERT
+                cursor.execute("""
+                    INSERT INTO alert_configs 
+                    (name, app_name, prometheus_id, query_string, interval_minutes, warning_threshold, 
+                     critical_threshold, msteams_webhook, payload_name, payload_error, payload_detail, 
+                     payload_action, payload_grafana)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                """, tuple(data.values()))
+                
+                # Initialize alert state
+                new_config_id = cursor.fetchone()['id']
+                cursor.execute("INSERT INTO alert_states (alert_config_id) VALUES (%s)", (new_config_id,))
+                conn.commit()
+                
+                load_jobs_from_db()
+                flash(f"Alert config '{data['name']}' created successfully.", "success")
+        except Exception as e:
+            conn.rollback()
+            flash(f"Error saving alert config: {str(e)}", "error")
+        finally:
+            cursor.close()
+            conn.close()
         
-        # Reload scheduler
-        load_jobs_from_db()
-        
-        flash(f"Alert config '{data['name']}' created successfully.", "success")
         return redirect(url_for("dashboard"))
 
     # GET
+    config = None
+    config_id = request.args.get('id')
+    
     conn = get_db()
     cursor = conn.cursor()
+    
+    if config_id:
+        cursor.execute("SELECT * FROM alert_configs WHERE id = %s", (config_id,))
+        config = cursor.fetchone()
+    
     cursor.execute("SELECT * FROM prometheus_connections")
     connections = cursor.fetchall()
     cursor.close()
     conn.close()
-    return render_template("alert_config.html", connections=connections)
+    
+    return render_template("alert_config.html", connections=connections, config=config)
 
 @app.route("/alert-config/<int:config_id>", methods=["DELETE"])
 def delete_alert_config(config_id):
@@ -366,8 +402,9 @@ def servers():
 
 @app.route("/server-config", methods=["GET", "POST"])
 def server_config():
-    """Create new server monitoring configuration."""
+    """Create or update server monitoring configuration."""
     if request.method == "POST":
+        config_id = request.form.get("config_id")  # If editing
         data = {
             'name': request.form.get("name"),
             'prometheus_id': request.form.get("prometheus_id"),
@@ -395,40 +432,72 @@ def server_config():
         cursor = conn.cursor()
         
         try:
-            cursor.execute("""
-                INSERT INTO server_configs 
-                (name, prometheus_id, cpu_query, memory_query, disk_query,
-                 cpu_warning_threshold, cpu_critical_threshold,
-                 memory_warning_threshold, memory_critical_threshold,
-                 disk_warning_threshold, disk_critical_threshold,
-                 msteams_webhook)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
-            """, tuple(data.values()))
-            
-            config_id = cursor.fetchone()['id']
-            conn.commit()
-            
-            # Reload scheduler
-            load_jobs_from_db()
-            
-            flash(f"Server configuration '{data['name']}' created successfully.", "success")
-            return redirect(url_for("servers"))
+            if config_id:  # UPDATE
+                cursor.execute("""
+                    UPDATE server_configs
+                    SET name=%s, prometheus_id=%s, cpu_query=%s, memory_query=%s, disk_query=%s,
+                        cpu_warning_threshold=%s, cpu_critical_threshold=%s,
+                        memory_warning_threshold=%s, memory_critical_threshold=%s,
+                        disk_warning_threshold=%s, disk_critical_threshold=%s,
+                        msteams_webhook=%s
+                    WHERE id=%s
+                """, (data['name'], data['prometheus_id'], data['cpu_query'], data['memory_query'],
+                      data['disk_query'], data['cpu_warning_threshold'], data['cpu_critical_threshold'],
+                      data['memory_warning_threshold'], data['memory_critical_threshold'],
+                      data['disk_warning_threshold'], data['disk_critical_threshold'],
+                      data['msteams_webhook'], config_id))
+                
+                if cursor.rowcount == 0:
+                    conn.rollback()
+                    flash("Server config not found.", "error")
+                else:
+                    conn.commit()
+                    load_jobs_from_db()
+                    flash(f"Server configuration '{data['name']}' updated successfully.", "success")
+            else:  # INSERT
+                cursor.execute("""
+                    INSERT INTO server_configs 
+                    (name, prometheus_id, cpu_query, memory_query, disk_query,
+                     cpu_warning_threshold, cpu_critical_threshold,
+                     memory_warning_threshold, memory_critical_threshold,
+                     disk_warning_threshold, disk_critical_threshold,
+                     msteams_webhook)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                """, tuple(data.values()))
+                
+                config_id = cursor.fetchone()['id']
+                conn.commit()
+                
+                # Reload scheduler
+                load_jobs_from_db()
+                
+                flash(f"Server configuration '{data['name']}' created successfully.", "success")
         except Exception as e:
             conn.rollback()
-            flash(f"Error creating server config: {str(e)}", "error")
+            flash(f"Error saving server config: {str(e)}", "error")
         finally:
             cursor.close()
             conn.close()
+        
+        return redirect(url_for("servers"))
     
     # GET
+    config = None
+    config_id = request.args.get('id')
+    
     conn = get_db()
     cursor = conn.cursor()
+    
+    if config_id:
+        cursor.execute("SELECT * FROM server_configs WHERE id = %s", (config_id,))
+        config = cursor.fetchone()
+    
     cursor.execute("SELECT * FROM prometheus_connections")
     connections = cursor.fetchall()
     cursor.close()
     conn.close()
-    return render_template("server_config.html", connections=connections)
+    return render_template("server_config.html", connections=connections, config=config)
 
 @app.route("/server-config/<int:config_id>", methods=["DELETE"])
 def delete_server_config(config_id):

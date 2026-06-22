@@ -29,11 +29,12 @@
 
 {% block content %}
 <div style="margin-bottom: 2rem;">
-    <h1>Create Alert Rule</h1>
+    <h1>{% if config %}Edit Alert Rule{% else %}Create Alert Rule{% endif %}</h1>
     <p style="color: var(--text-secondary);">Configure a PromQL query, thresholds, and Microsoft Teams delivery</p>
 </div>
 
 <form action="/alert-config" method="POST">
+    {% if config %}<input type="hidden" name="config_id" value="{{ config.id }}">{% endif %}
     <div class="form-grid">
         <div class="glass-card">
             <h2><i class="fa-solid fa-gear" style="color: var(--accent-primary);"></i> Rule Configuration</h2>
