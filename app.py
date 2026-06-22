@@ -499,6 +499,17 @@ def server_config():
     conn.close()
     return render_template("server_config.html", connections=connections, config=config)
 
+@app.route("/api/servers", methods=["GET"])
+def get_servers_api():
+    """API endpoint to fetch all servers for dropdown selection."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name FROM server_configs ORDER BY name ASC")
+    servers = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify([{"id": s['id'], "name": s['name']} for s in servers])
+
 @app.route("/server-config/<int:config_id>", methods=["DELETE"])
 def delete_server_config(config_id):
     """Delete server monitoring configuration."""
