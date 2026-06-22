@@ -9,7 +9,7 @@ if hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8')
 
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
-from database import get_db, init_db, cleanup_old_logs
+from database import get_db, init_db, cleanup_old_logs, migrate_add_target_column
 from scheduler import run_alert_check, run_server_monitoring_check, query_prometheus
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -626,6 +626,7 @@ def api_server_metrics(config_id):
 
 if __name__ == "__main__":
     init_db()
+    migrate_add_target_column()
     load_jobs_from_db()
     scheduler.start()
     app.run(host="0.0.0.0", port=5000, debug=False)

@@ -127,6 +127,33 @@ def init_db():
     conn.close()
     print("Database initialized successfully!")
 
+def migrate_add_target_column():
+    """Add target column to server_configs if it doesn't exist."""
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        # Check if target column exists
+        cursor.execute("""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name='server_configs' AND column_name='target'
+        """)
+        
+        if not cursor.fetchone():
+            # Column doesn't exist, add it
+            cursor.execute("""
+                ALTER TABLE server_configs ADD COLUMN target TEXT
+            """)
+            conn.commit()
+            print("Added 'target' column to server_configs table")
+        else:
+            print("'target' column already exists in server_configs table")
+    except Exception as e:
+        conn.rollback()
+        print(f"Error during migration: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
 def cleanup_old_logs(days=7):
     """Delete alert logs older than specified days."""
     conn = get_db()
