@@ -123,6 +123,38 @@
                 <textarea id="msteams_webhook" name="msteams_webhook" class="form-control" placeholder="https://outlook.webhook.office.com/webhookb2/..." required></textarea>
             </div>
 
+            <div class="section-title"><i class="fa-solid fa-envelope"></i> Teams Payload Template</div>
+            <div class="info-box">
+                <i class="fa-solid fa-circle-info"></i>
+                <strong>Dynamic variables available:</strong><br>
+                <code style="font-size: 0.75rem;">{alert_name}, {app_name}, {query}, {value}, {warning_threshold}, {critical_threshold}, {timestamp}, {target}, {metric_type}</code>
+            </div>
+
+            <div class="form-group">
+                <label for="payload_name">Name</label>
+                <input type="text" id="payload_name" name="payload_name" class="form-control" placeholder="Server Alert: {alert_name} - {metric_type}" />
+            </div>
+
+            <div class="form-group">
+                <label for="payload_error">Error</label>
+                <textarea id="payload_error" name="payload_error" class="form-control" placeholder="Server {alert_name} - {metric_type} threshold exceeded"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="payload_detail">Detail</label>
+                <textarea id="payload_detail" name="payload_detail" class="form-control" placeholder="Current value: {value} | Warning: {warning_threshold} | Critical: {critical_threshold}"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="payload_action">Action</label>
+                <input type="text" id="payload_action" name="payload_action" class="form-control" placeholder="View Server Details" />
+            </div>
+
+            <div class="form-group">
+                <label for="payload_grafana">Grafana URL</label>
+                <textarea id="payload_grafana" name="payload_grafana" class="form-control" placeholder="https://grafana.example.com/d/xxxxx?var-instance={target}"></textarea>
+            </div>
+
             <div class="info-box">
                 <i class="fa-solid fa-circle-info"></i>
                 Alerts will be sent to Teams when metrics exceed thresholds. Checks run every 5 minutes.
@@ -181,6 +213,11 @@
         {% if config %}
             document.getElementById('name').value = '{{ config.name }}';
             document.getElementById('prometheus_id').value = '{{ config.prometheus_id }}';
+            document.getElementById('payload_name').value = '{{ config.payload_name or "" }}';
+            document.getElementById('payload_error').value = '{{ config.payload_error or "" }}';
+            document.getElementById('payload_detail').value = '{{ config.payload_detail or "" }}';
+            document.getElementById('payload_action').value = '{{ config.payload_action or "" }}';
+            document.getElementById('payload_grafana').value = '{{ config.payload_grafana or "" }}';
             handlePrometheusChange();
         {% endif %}
     });
