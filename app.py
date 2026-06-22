@@ -367,6 +367,15 @@ def test_prometheus():
     else:
         return jsonify({"status": "ok", "value": value})
 
+@app.route("/trigger-server-monitoring/<int:server_id>", methods=["POST"])
+def trigger_server_monitoring(server_id):
+    """Manually trigger server monitoring check."""
+    try:
+        run_server_monitoring_check(server_id)
+        return jsonify({"status": "ok", "message": "Server monitoring check triggered"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 # --- Server Monitoring Routes ---
 @app.route("/servers", methods=["GET"])
 def servers():
@@ -386,7 +395,7 @@ def servers():
     server_metrics = {}
     for server in server_configs:
         cursor.execute("""
-            SELECT metric_type, metric_value, current_state
+            SELECT metric_type, metric_value, current_state, created_at
             FROM server_metrics
             WHERE server_config_id = %s
             ORDER BY created_at DESC

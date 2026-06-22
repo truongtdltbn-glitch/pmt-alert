@@ -156,6 +156,9 @@
                             </td>
                             <td style="text-align: center;">
                                 <div class="actions-cell">
+                                    <button type="button" class="btn btn-secondary" onclick="triggerMonitoring({{ server.id }})" title="Trigger monitoring check now">
+                                        <i class="fa-solid fa-refresh"></i>
+                                    </button>
                                     <a href="/server-config?id={{ server.id }}" class="btn btn-secondary" style="text-decoration: none;">
                                         <i class="fa-solid fa-edit"></i>
                                     </a>
@@ -182,6 +185,20 @@
 {% endif %}
 
 <script>
+function triggerMonitoring(serverId) {
+    fetch(`/trigger-server-monitoring/${serverId}`, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'ok') {
+                alert('Monitoring check triggered! Refreshing in 2 seconds...');
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                alert(`Error: ${data.message}`);
+            }
+        })
+        .catch(err => alert(`Error: ${err}`));
+}
+
 function deleteServer(serverId) {
     if (!confirm('Are you sure you want to delete this server configuration?')) return;
     
