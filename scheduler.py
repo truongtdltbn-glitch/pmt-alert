@@ -265,24 +265,59 @@ def run_server_monitoring_check(server_config_id):
         # Send alerts if any
         if alerts_to_send:
             for alert in alerts_to_send:
+                # Prepare variables for payload formatting
+                variables = {
+                    'alert_name': config['name'],
+                    'app_name': config['name'],
+                    'query': alert['type'].upper(),
+                    'value': f"{alert['value']:.2f}%",
+                    'warning_threshold': f"{alert['warning']:.2f}%",
+                    'critical_threshold': f"{alert['critical']:.2f}%",
+                    'timestamp': datetime.datetime.now().isoformat(),
+                    'target': config.get('target', 'Unknown'),
+                    'metric_type': alert['type']
+                }
+                
+                # Build Teams payload from templates
                 payload = {
                     "@type": "MessageCard",
                     "@context": "https://schema.org/extensions",
-                    "summary": f"Server Alert: {config['name']} - {alert['type'].upper()}",
+                    "summary": format_payload_field(config.get('payload_name', 'Server Alert: {alert_name}'), variables),
                     "themeColor": "FF0000" if alert['state'] == 'critical' else "FFA500",
                     "sections": [
                         {
-                            "activityTitle": f"{config['name']} - {alert['type'].upper()} Alert",
+                            "activityTitle": format_payload_field(config.get('payload_name', 'Server Alert: {alert_name}'), variables),
                             "facts": [
+                                {"name": "Server", "value": config['name']},
+                                {"name": "Target", "value": config.get('target', 'N/A')},
+                                {"name": "Metric", "value": alert['type'].upper()},
                                 {"name": "Status", "value": alert['state'].upper()},
                                 {"name": "Current Value", "value": f"{alert['value']:.2f}%"},
                                 {"name": "Threshold", "value": f"{alert['threshold']:.2f}%"},
-                                {"name": "Timestamp", "value": datetime.datetime.now().isoformat()}
+                                {"name": "Timestamp", "value": datetime.datetime.now().isoformat()},
+                                {"name": "Error", "value": format_payload_field(config.get('payload_error', 'N/A'), variables)},
+                                {"name": "Detail", "value": format_payload_field(config.get('payload_detail', 'Check server metrics'), variables)},
                             ],
                             "markdown": True
                         }
+                    ],
+                    "potentialAction": [
+                        {
+                            "@type": "OpenUri",
+                            "name": "View Details",
+                            "targets": [
+                                {
+                                    "os": "default",
+                                    "uri": format_payload_field(config.get('payload_grafana', '#'), variables)
+                                }
+                            ]
+                        }
                     ]
                 }
+                
+                # Add action if provided
+                if config.get('payload_action'):
+                    payload["potentialAction"][0]["name"] = format_payload_field(config.get('payload_action', 'View Details'), variables)
                 
                 send_teams_alert(config['msteams_webhook'], payload)
             

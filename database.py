@@ -154,6 +154,36 @@ def migrate_add_target_column():
         cursor.close()
         conn.close()
 
+def migrate_add_payload_columns():
+    """Add Teams payload columns to server_configs if they don't exist."""
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        # Check which columns need to be added
+        payload_columns = ['payload_name', 'payload_error', 'payload_detail', 'payload_action', 'payload_grafana']
+        
+        for col in payload_columns:
+            cursor.execute(f"""
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name='server_configs' AND column_name='{col}'
+            """)
+            
+            if not cursor.fetchone():
+                cursor.execute(f"""
+                    ALTER TABLE server_configs ADD COLUMN {col} TEXT
+                """)
+                conn.commit()
+                print(f"Added '{col}' column to server_configs table")
+            else:
+                print(f"'{col}' column already exists in server_configs table")
+                
+    except Exception as e:
+        conn.rollback()
+        print(f"Error during migration: {e}")
+    finally:
+        cursor.close()
+        conn.close()
+
 def cleanup_old_logs(days=7):
     """Delete alert logs older than specified days."""
     conn = get_db()

@@ -9,7 +9,7 @@ if hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8')
 
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
-from database import get_db, init_db, cleanup_old_logs, migrate_add_target_column
+from database import get_db, init_db, cleanup_old_logs, migrate_add_target_column, migrate_add_payload_columns
 from scheduler import run_alert_check, run_server_monitoring_check, query_prometheus
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -428,6 +428,11 @@ def server_config():
             'disk_warning_threshold': request.form.get("disk_warning_threshold", 80, type=float),
             'disk_critical_threshold': request.form.get("disk_critical_threshold", 95, type=float),
             'msteams_webhook': request.form.get("msteams_webhook"),
+            'payload_name': request.form.get("payload_name"),
+            'payload_error': request.form.get("payload_error"),
+            'payload_detail': request.form.get("payload_detail"),
+            'payload_action': request.form.get("payload_action"),
+            'payload_grafana': request.form.get("payload_grafana"),
         }
         
         if not all([data['name'], data['prometheus_id'], data['msteams_webhook']]):
@@ -449,13 +454,15 @@ def server_config():
                         cpu_warning_threshold=%s, cpu_critical_threshold=%s,
                         memory_warning_threshold=%s, memory_critical_threshold=%s,
                         disk_warning_threshold=%s, disk_critical_threshold=%s,
-                        msteams_webhook=%s
+                        msteams_webhook=%s, payload_name=%s, payload_error=%s, payload_detail=%s, 
+                        payload_action=%s, payload_grafana=%s
                     WHERE id=%s
                 """, (data['name'], data['target'], data['prometheus_id'], data['cpu_query'], data['memory_query'],
                       data['disk_query'], data['cpu_warning_threshold'], data['cpu_critical_threshold'],
                       data['memory_warning_threshold'], data['memory_critical_threshold'],
                       data['disk_warning_threshold'], data['disk_critical_threshold'],
-                      data['msteams_webhook'], config_id))
+                      data['msteams_webhook'], data['payload_name'], data['payload_error'], 
+                      data['payload_detail'], data['payload_action'], data['payload_grafana'], config_id))
                 
                 if cursor.rowcount == 0:
                     conn.rollback()
@@ -471,8 +478,8 @@ def server_config():
                      cpu_warning_threshold, cpu_critical_threshold,
                      memory_warning_threshold, memory_critical_threshold,
                      disk_warning_threshold, disk_critical_threshold,
-                     msteams_webhook)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     msteams_webhook, payload_name, payload_error, payload_detail, payload_action, payload_grafana)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id
                 """, tuple(data.values()))
                 
@@ -636,6 +643,7 @@ def api_server_metrics(config_id):
 if __name__ == "__main__":
     init_db()
     migrate_add_target_column()
+    migrate_add_payload_columns()
     load_jobs_from_db()
     scheduler.start()
     app.run(host="0.0.0.0", port=5000, debug=False)
