@@ -1,70 +1,359 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Prometheus Alert{% endblock %}
+{% block title %}Dashboard - PMT Alerting System{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Stretch layout to maximum on dashboard for wide / dual screens */
+    body, main, .nav-container {
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+    main {
+        padding: 0 1rem !important;
+        margin-top: 1rem !important;
+    }
+    .nav-container {
+        padding: 0.5rem 1rem !important;
+    }
+
+    .table-container {
+        overflow-x: auto;
+        border-radius: 12px;
+        border: 1px solid var(--panel-border);
+    }
+
+    .dashboard-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+    }
+
+    .dashboard-table th {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-primary);
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        padding: 0.4rem 0.3rem;
+        border-bottom: 1px solid var(--panel-border);
+    }
+
+    .dashboard-table td {
+        padding: 0.4rem 0.3rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        font-size: 0.72rem;
+        color: var(--text-primary);
+        vertical-align: middle;
+    }
+
+    .dashboard-table tr:hover {
+        background: rgba(255, 255, 255, 0.01);
+    }
+
+    /* Status Dot CSS */
+    .status-cell {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-weight: 600;
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        font-family: var(--font-mono);
+    }
+
+    .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    .dot-ok {
+        background-color: var(--success);
+        box-shadow: 0 0 8px var(--success);
+    }
+
+    .dot-warning {
+        background-color: var(--warning);
+        box-shadow: 0 0 8px var(--warning);
+    }
+
+    .dot-critical {
+        background-color: var(--critical);
+        box-shadow: 0 0 8px var(--critical);
+    }
+
+    .text-ok { color: var(--success); }
+    .text-warning { color: var(--warning); }
+    .text-critical { color: var(--critical); }
+
+    .rule-name {
+        font-weight: 600;
+        font-size: 0.75rem;
+    }
+
+    .code-style {
+        font-family: var(--font-mono);
+        background: rgba(255, 255, 255, 0.04);
+        padding: 0.05rem 0.2rem;
+        border-radius: 3px;
+        font-size: 0.65rem;
+        word-break: break-all;
+    }
+
+    .metric-value-cell {
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+
+    .last-check-time {
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        color: var(--text-secondary);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: var(--text-secondary);
+    }
+
+    .empty-state i {
+        font-size: 3.5rem;
+        margin-bottom: 1.5rem;
+        background: linear-gradient(135deg, var(--accent-primary), var(--success));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .actions-cell {
+        display: flex;
+        gap: 0.3rem;
+    }
+
+    .actions-cell .btn {
+        padding: 0.25rem 0.5rem !important;
+        font-size: 0.7rem !important;
+        border-radius: 4px !important;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<h1 class="page-title"><i class="fas fa-tachometer-alt"></i> Alert Dashboard</h1>
-
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
-    <div class="card" style="text-align: center;">
-        <div style="font-size: 2rem; color: var(--primary);">{{ configs|length }}</div>
-        <div>Total Alerts</div>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 1.5rem; flex-wrap: wrap;">
+    <div>
+        <h1 style="margin-bottom: 0.25rem;">Alerting Rules Dashboard</h1>
+        <p style="color: var(--text-secondary);">Real-time monitoring across your Prometheus servers</p>
     </div>
-    <div class="card" style="text-align: center;">
-        <div style="font-size: 2rem; color: var(--warning);">{{ recent_alerts }}</div>
-        <div>Last 24h Alerts</div>
-    </div>
-</div>
-
-<div class="card">
-    <h2 style="margin-bottom: 1rem;">Active Alert Configurations</h2>
     
-    {% if configs %}
-    <table>
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>App</th>
-                <th>Prometheus</th>
-                <th>Status</th>
-                <th>Last Checked</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for config in configs %}
-            <tr>
-                <td>{{ config['name'] }}</td>
-                <td>{{ config['app_name'] or 'N/A' }}</td>
-                <td>{{ config['prom_name'] or 'Unknown' }}</td>
-                <td>
-                    <span class="status status-{{ config['current_state'] or 'ok' }}">
-                        {{ config['current_state'] or 'OK' }}
-                    </span>
-                </td>
-                <td>{{ config['last_checked_at'] or 'Never' }}</td>
-                <td>
-                    <a href="/logs/{{ config['id'] }}" class="btn" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">Logs</a>
-                    <button onclick="deleteConfig({{ config['id'] }})" class="btn btn-danger" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">Delete</button>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <p style="color: var(--text-dim); text-align: center; padding: 2rem;">No alert configurations found. <a href="/alert-config" class="btn">Create one</a></p>
-    {% endif %}
+    <div style="display: flex; gap: 1.5rem; align-items: center;">
+        <div style="text-align: center; background: rgba(59, 130, 246, 0.1); padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3);">
+            <div style="font-size: 1.25rem; font-weight: bold; color: var(--accent-primary); line-height: 1;">{{ configs|length }}</div>
+            <div style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase;">Total Alerts</div>
+        </div>
+        <div style="text-align: center; background: rgba(245, 158, 11, 0.1); padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.3);">
+            <div style="font-size: 1.25rem; font-weight: bold; color: var(--warning); line-height: 1;">{{ recent_alerts }}</div>
+            <div style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase;">Last 24h Alerts</div>
+        </div>
+    </div>
+    
+    <div style="display: flex; gap: 1rem; align-items: center;">
+        <div style="position: relative;">
+            <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-secondary);"></i>
+            <input type="text" id="search-input" placeholder="Search rules..." style="padding: 0.75rem 1rem 0.75rem 2.5rem; border-radius: 8px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--panel-border); color: var(--text-primary); min-width: 250px; transition: all 0.3s ease; font-family: var(--font-main);">
+        </div>
+        <div>
+            <select id="app-filter" style="padding: 0.75rem 1.5rem 0.75rem 1rem; border-radius: 8px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--panel-border); color: var(--text-primary); min-width: 180px; transition: all 0.3s ease; font-family: var(--font-main); cursor: pointer; outline: none; appearance: none; -webkit-appearance: none; -moz-appearance: none; background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%239ca3af%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 0.65rem auto;">
+                <option value="" style="background: var(--bg-color); color: var(--text-primary);">All Applications</option>
+            </select>
+        </div>
+        <a href="/alert-config" class="btn btn-primary">
+            <i class="fa-solid fa-plus"></i> New Alert Rule
+        </a>
+    </div>
 </div>
+
+{% if not configs %}
+<div class="glass-card empty-state">
+    <i class="fa-solid fa-bell-slash"></i>
+    <h2>No Alert Configurations</h2>
+    <p style="margin-bottom: 1.5rem;">Configure your first Prometheus alert rule.</p>
+    <a href="/alert-config" class="btn btn-primary">Create Alert</a>
+</div>
+{% else %}
+<div class="glass-card" style="padding: 1rem;">
+    <div class="table-container">
+        <table class="dashboard-table">
+            <thead>
+                <tr>
+                    <th style="width: 120px;">Health</th>
+                    <th>Rule Name</th>
+                    <th>Application</th>
+                    <th>Prometheus Server</th>
+                    <th>Query String</th>
+                    <th style="text-align: center;">Interval</th>
+                    <th style="text-align: center;">Thresholds</th>
+                    <th style="text-align: center;">Current Value</th>
+                    <th>Last Checked</th>
+                    <th style="text-align: center;">Status</th>
+                    <th style="width: 140px; text-align: center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for config in configs %}
+                    {% set state = config.current_state or 'ok' %}
+                    {% set state_class = 'ok' if state == 'ok' else ('warning' if state == 'warning' else 'critical') %}
+                    <tr>
+                        <!-- Status dot + text -->
+                        <td>
+                            <div class="status-cell text-{{ state_class }}">
+                                <span class="status-dot dot-{{ state_class }}"></span>
+                                {{ 'ok' if state == 'ok' else state }}
+                            </div>
+                        </td>
+                        <!-- Rule name -->
+                        <td class="rule-name">{{ config.name }}</td>
+                        <!-- Application Name -->
+                        <td class="app-name">{{ config.app_name or 'N/A' }}</td>
+                        <!-- Prometheus Server -->
+                        <td>{{ config.prom_name or 'Unknown' }}</td>
+                        <!-- Query string -->
+                        <td><code class="code-style">{{ config.query_string }}</code></td>
+                        <!-- Interval -->
+                        <td style="text-align: center;">
+                            <span style="font-size: 0.9rem;">Check: <strong>{{ config.interval_minutes }}m</strong></span>
+                        </td>
+                        <!-- Thresholds limits -->
+                        <td style="text-align: center; font-size: 0.85rem; color: var(--text-secondary);">
+                            <span class="text-warning">Warn &ge; {{ config.warning_threshold }}</span><br>
+                            <span class="text-critical">Crit &ge; {{ config.critical_threshold }}</span>
+                        </td>
+                        <!-- Current Value -->
+                        <td style="text-align: center;" class="metric-value-cell text-{{ state_class }}">
+                            {{ config.last_triggered_count or 0 }}
+                        </td>
+                        <!-- Last Checked -->
+                        <td class="last-check-time">
+                            {{ config.last_checked_at or 'Never' }}
+                        </td>
+                        <!-- Rule Status (Active / Inactive) -->
+                        <td style="text-align: center;">
+                            {% if config.status == 'active' %}
+                                <span class="badge badge-normal" style="font-size: 0.68rem; padding: 0.2rem 0.5rem;"><i class="fa-solid fa-circle-check"></i> Active</span>
+                            {% else %}
+                                <span class="badge badge-critical" style="font-size: 0.68rem; padding: 0.2rem 0.5rem; background: rgba(239, 68, 68, 0.1); color: var(--critical); border: 1px solid rgba(239, 68, 68, 0.2);"><i class="fa-solid fa-circle-xmark"></i> Inactive</span>
+                            {% endif %}
+                        </td>
+                        <!-- Actions -->
+                        <td>
+                            <div class="actions-cell" style="justify-content: center;">
+                                <a href="/logs/{{ config.id }}" class="btn btn-secondary" style="padding: 0.5rem 0.75rem;" title="View Logs">
+                                    <i class="fa-solid fa-file-lines"></i>
+                                </a>
+                                <button onclick="deleteConfig({{ config.id }})" class="btn btn-danger" style="padding: 0.5rem 0.75rem;" title="Delete Rule">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
 
 <script>
-function deleteConfig(id) {
-    if (confirm('Are you sure?')) {
-        fetch('/alert-config', {
-            method: 'DELETE',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({id: id})
-        }).then(() => location.reload());
+    function deleteConfig(id) {
+        if (confirm('Are you sure you want to delete this alert configuration?')) {
+            fetch('/alert-config', {
+                method: 'DELETE',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({id: id})
+            }).then(() => location.reload());
+        }
     }
-}
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const searchInput = document.getElementById('search-input');
+        const appFilter = document.getElementById('app-filter');
+
+        // Extract unique application names from the table and populate select dropdown
+        if (appFilter) {
+            const appNames = new Set();
+            const rows = document.querySelectorAll('.dashboard-table tbody tr');
+            
+            rows.forEach(row => {
+                const appNameCell = row.querySelector('.app-name');
+                if (appNameCell && appNameCell.textContent.trim() && appNameCell.textContent.trim() !== 'N/A') {
+                    appNames.add(appNameCell.textContent.trim());
+                }
+            });
+
+            // Sort and append options to dropdown
+            Array.from(appNames).sort().forEach(app => {
+                const option = document.createElement('option');
+                option.value = app;
+                option.textContent = app;
+                option.style.backgroundColor = 'var(--bg-color)';
+                option.style.color = 'var(--text-primary)';
+                appFilter.appendChild(option);
+            });
+
+            appFilter.addEventListener('change', filterTable);
+        }
+
+        if (searchInput) {
+            // Apply styling on focus
+            searchInput.addEventListener('focus', () => {
+                searchInput.style.borderColor = 'var(--accent-primary)';
+                searchInput.style.boxShadow = '0 0 10px var(--accent-glow)';
+                searchInput.style.outline = 'none';
+            });
+            
+            searchInput.addEventListener('blur', () => {
+                searchInput.style.borderColor = 'var(--panel-border)';
+                searchInput.style.boxShadow = 'none';
+            });
+
+            searchInput.addEventListener('input', filterTable);
+        }
+
+        // Unified filter logic
+        function filterTable() {
+            const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            const selectedApp = appFilter ? appFilter.value : '';
+            const rows = document.querySelectorAll('.dashboard-table tbody tr');
+
+            rows.forEach(row => {
+                const ruleNameCell = row.querySelector('.rule-name');
+                const appNameCell = row.querySelector('.app-name');
+                const queryCell = row.querySelector('.code-style'); 
+
+                const ruleName = ruleNameCell ? ruleNameCell.textContent.toLowerCase() : '';
+                const appName = appNameCell ? appNameCell.textContent.trim() : '';
+                const appNameLower = appName.toLowerCase();
+                const queryText = queryCell ? queryCell.textContent.toLowerCase() : '';
+
+                // Search matching
+                const matchesSearch = !query || 
+                    ruleName.includes(query) || 
+                    appNameLower.includes(query) || 
+                    queryText.includes(query);
+
+                // Application Filter dropdown matching
+                const matchesApp = !selectedApp || appName === selectedApp;
+
+                if (matchesSearch && matchesApp) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+    });
 </script>
 {% endblock %}

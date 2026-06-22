@@ -1,14 +1,25 @@
-import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import os
 import json
 from datetime import datetime, timedelta
 
-DB_PATH = os.environ.get("DB_PATH", "pmt_alert.db")
+PG_HOST = os.environ.get("PG_HOST", "10.75.48.100")
+PG_PORT = os.environ.get("PG_PORT", "5432")
+PG_USER = os.environ.get("PG_USER", "admin")
+PG_PASS = os.environ.get("PG_PASS", "Admin@123")
+PG_DB   = os.environ.get("PG_DB",   "pmt-alert")
 
 def get_db():
-    """Return a sqlite3 connection with row factory for dict-like access."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    """Return a psycopg2 connection with RealDictCursor for dict-like access."""
+    conn = psycopg2.connect(
+        host=PG_HOST,
+        port=PG_PORT,
+        user=PG_USER,
+        password=PG_PASS,
+        dbname=PG_DB,
+        cursor_factory=RealDictCursor
+    )
     return conn
 
 def init_db():
@@ -19,7 +30,7 @@ def init_db():
     # Prometheus Connections table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS prometheus_connections (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        id          SERIAL PRIMARY KEY,
         name        TEXT NOT NULL,
         url         TEXT NOT NULL,
         created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -29,7 +40,7 @@ def init_db():
     # Alert Configurations table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS alert_configs (
-        id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+        id                   SERIAL PRIMARY KEY,
         name                 TEXT NOT NULL,
         app_name             TEXT,
         prometheus_id        INTEGER NOT NULL,
@@ -52,7 +63,7 @@ def init_db():
     # Alert States table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS alert_states (
-        id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+        id                  SERIAL PRIMARY KEY,
         alert_config_id     INTEGER NOT NULL,
         current_state       TEXT DEFAULT 'ok',
         last_triggered_count INTEGER DEFAULT 0,
@@ -65,7 +76,7 @@ def init_db():
     # Alert Logs table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS alert_logs (
-        id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+        id                  SERIAL PRIMARY KEY,
         alert_config_id     INTEGER NOT NULL,
         alert_state         TEXT,
         query_result_count  REAL,
@@ -85,7 +96,7 @@ def cleanup_old_logs(days=7):
     conn = get_db()
     cursor = conn.cursor()
     cutoff_date = (datetime.now() - timedelta(days=days)).isoformat()
-    cursor.execute("DELETE FROM alert_logs WHERE created_at < ?", (cutoff_date,))
+    cursor.execute("DELETE FROM alert_logs WHERE created_at < %s", (cutoff_date,))
     deleted = cursor.rowcount
     conn.commit()
     conn.close()

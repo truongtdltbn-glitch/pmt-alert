@@ -94,7 +94,7 @@ def run_alert_check(alert_config_id):
             SELECT ac.*, pc.url as prometheus_url
             FROM alert_configs ac
             JOIN prometheus_connections pc ON ac.prometheus_id = pc.id
-            WHERE ac.id = ?
+            WHERE ac.id = %s
         """, (alert_config_id,))
         config = cursor.fetchone()
         
@@ -103,12 +103,12 @@ def run_alert_check(alert_config_id):
             return
         
         # Initialize alert state if doesn't exist
-        cursor.execute("SELECT * FROM alert_states WHERE alert_config_id = ?", (alert_config_id,))
+        cursor.execute("SELECT * FROM alert_states WHERE alert_config_id = %s", (alert_config_id,))
         state = cursor.fetchone()
         if not state:
             cursor.execute("""
                 INSERT INTO alert_states (alert_config_id, current_state)
-                VALUES (?, 'ok')
+                VALUES (%s, 'ok')
             """, (alert_config_id,))
             conn.commit()
             state = cursor.fetchone()
@@ -143,7 +143,7 @@ def run_alert_check(alert_config_id):
         cursor.execute("""
             INSERT INTO alert_logs 
             (alert_config_id, alert_state, query_result_count, threshold, message)
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s)
         """, (
             alert_config_id,
             new_state,
@@ -174,15 +174,15 @@ def run_alert_check(alert_config_id):
             # Update state
             cursor.execute("""
                 UPDATE alert_states 
-                SET current_state = ?, last_triggered_at = CURRENT_TIMESTAMP, last_triggered_count = last_triggered_count + 1
-                WHERE alert_config_id = ?
+                SET current_state = %s, last_triggered_at = CURRENT_TIMESTAMP, last_triggered_count = last_triggered_count + 1
+                WHERE alert_config_id = %s
             """, (new_state, alert_config_id))
         
         # Update last checked time
         cursor.execute("""
             UPDATE alert_states 
             SET last_checked_at = CURRENT_TIMESTAMP
-            WHERE alert_config_id = ?
+            WHERE alert_config_id = %s
         """, (alert_config_id,))
         
         conn.commit()

@@ -104,7 +104,7 @@ def dashboard():
     """)
     configs = cursor.fetchall()
     
-    cursor.execute("SELECT COUNT(*) as total FROM alert_logs WHERE created_at > datetime('now', '-1 day')")
+    cursor.execute("SELECT COUNT(*) as total FROM alert_logs WHERE created_at > NOW() - INTERVAL '1 day'")
     recent_alerts = cursor.fetchone()['total']
     
     cursor.close()
@@ -126,7 +126,7 @@ def alerts():
         FROM alert_logs l
         JOIN alert_configs c ON l.alert_config_id = c.id
         ORDER BY l.created_at DESC
-        LIMIT ? OFFSET ?
+        LIMIT %s OFFSET %s
     """, (per_page, offset))
     logs = cursor.fetchall()
     
@@ -151,7 +151,7 @@ def connections():
         
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO prometheus_connections (name, url) VALUES (?, ?)", (name, url))
+        cursor.execute("INSERT INTO prometheus_connections (name, url) VALUES (%s, %s)", (name, url))
         conn.commit()
         conn.close()
         flash(f"Prometheus connection '{name}' added successfully.", "success")
@@ -161,7 +161,7 @@ def connections():
         conn_id = request.json.get("id")
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM prometheus_connections WHERE id = ?", (conn_id,))
+        cursor.execute("DELETE FROM prometheus_connections WHERE id = %s", (conn_id,))
         conn.commit()
         conn.close()
         return jsonify({"status": "ok"})
@@ -205,13 +205,13 @@ def alert_config():
             (name, app_name, prometheus_id, query_string, interval_minutes, warning_threshold, 
              critical_threshold, msteams_webhook, payload_name, payload_error, payload_detail, 
              payload_action, payload_grafana)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
         """, tuple(data.values()))
-        conn.commit()
         
         # Initialize alert state
-        config_id = cursor.lastrowid
-        cursor.execute("INSERT INTO alert_states (alert_config_id) VALUES (?)", (config_id,))
+        config_id = cursor.fetchone()['id']
+        cursor.execute("INSERT INTO alert_states (alert_config_id) VALUES (%s)", (config_id,))
         conn.commit()
         conn.close()
         
@@ -225,9 +225,9 @@ def alert_config():
         config_id = request.json.get("id")
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM alert_configs WHERE id = ?", (config_id,))
-        cursor.execute("DELETE FROM alert_states WHERE alert_config_id = ?", (config_id,))
-        cursor.execute("DELETE FROM alert_logs WHERE alert_config_id = ?", (config_id,))
+        cursor.execute("DELETE FROM alert_configs WHERE id = %s", (config_id,))
+        cursor.execute("DELETE FROM alert_states WHERE alert_config_id = %s", (config_id,))
+        cursor.execute("DELETE FROM alert_logs WHERE alert_config_id = %s", (config_id,))
         conn.commit()
         conn.close()
         load_jobs_from_db()
@@ -253,13 +253,13 @@ def logs(config_id):
     
     cursor.execute("""
         SELECT * FROM alert_logs 
-        WHERE alert_config_id = ?
+        WHERE alert_config_id = %s
         ORDER BY created_at DESC
-        LIMIT ? OFFSET ?
+        LIMIT %s OFFSET %s
     """, (config_id, per_page, offset))
     logs = cursor.fetchall()
     
-    cursor.execute("SELECT COUNT(*) as total FROM alert_logs WHERE alert_config_id = ?", (config_id,))
+    cursor.execute("SELECT COUNT(*) as total FROM alert_logs WHERE alert_config_id = %s", (config_id,))
     total = cursor.fetchone()['total']
     
     cursor.close()
