@@ -321,7 +321,11 @@ def run_server_monitoring_check(server_config_id):
                 if config.get('payload_action'):
                     payload["potentialAction"][0]["name"] = format_payload_field(config.get('payload_action', 'View Details'), variables)
                 
-                send_teams_alert(config['msteams_webhook'], payload)
+                try:
+                    send_teams_alert(config['msteams_webhook'], payload)
+                    logger.info(f"Alert sent for {config['name']}: {alert['type']} → {alert['state']}")
+                except Exception as e:
+                    logger.error(f"Failed to send alert for {config['name']}: {str(e)}")
             
             logger.info(f"Server monitoring alerts sent for {config['name']}: {[a['type'] for a in alerts_to_send]}")
         

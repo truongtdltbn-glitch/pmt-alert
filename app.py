@@ -376,6 +376,16 @@ def trigger_server_monitoring(server_id):
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route("/trigger-server-monitoring/<int:server_id>", methods=["POST"])
+def trigger_server_monitoring(server_id):
+    """Manually trigger server monitoring check."""
+    try:
+        run_server_monitoring_check(server_id)
+        return jsonify({"status": "ok", "message": "Server monitoring check triggered. Check app logs for alerts sent."}), 200
+    except Exception as e:
+        app.logger.error(f"Error triggering monitoring: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route("/test-server-monitoring/<int:server_id>", methods=["POST"])
 def test_server_monitoring(server_id):
     """Test server monitoring queries."""
@@ -399,15 +409,30 @@ def test_server_monitoring(server_id):
         # Test each query
         if config['cpu_query']:
             value, error = query_prometheus(config['prometheus_url'], config['cpu_query'])
-            results['cpu'] = {'value': value, 'error': error}
+            results['cpu'] = {
+                'value': value, 
+                'error': error,
+                'warning': config['cpu_warning_threshold'],
+                'critical': config['cpu_critical_threshold']
+            }
         
         if config['memory_query']:
             value, error = query_prometheus(config['prometheus_url'], config['memory_query'])
-            results['memory'] = {'value': value, 'error': error}
+            results['memory'] = {
+                'value': value, 
+                'error': error,
+                'warning': config['memory_warning_threshold'],
+                'critical': config['memory_critical_threshold']
+            }
         
         if config['disk_query']:
             value, error = query_prometheus(config['prometheus_url'], config['disk_query'])
-            results['disk'] = {'value': value, 'error': error}
+            results['disk'] = {
+                'value': value, 
+                'error': error,
+                'warning': config['disk_warning_threshold'],
+                'critical': config['disk_critical_threshold']
+            }
         
         cursor.close()
         conn.close()
@@ -415,6 +440,7 @@ def test_server_monitoring(server_id):
         return jsonify({"status": "ok", "results": results})
     
     except Exception as e:
+        app.logger.error(f"Error testing monitoring: {str(e)}")
         cursor.close()
         conn.close()
         return jsonify({"status": "error", "message": str(e)}), 500
