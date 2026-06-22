@@ -8,54 +8,47 @@
     main { max-width: 100% !important; width: 100% !important; padding: 0 1rem !important; margin-top: 1rem !important; }
     .nav-container { max-width: 100% !important; width: 100% !important; padding: 0.5rem 1rem !important; }
 
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
     .page-header h1 { margin: 0; }
-    .btn-header { display: flex; gap: 0.5rem; }
 
-    .servers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+    .table-container { overflow-x: auto; border-radius: 12px; border: 1px solid var(--panel-border); }
+    .servers-table { width: 100%; border-collapse: collapse; text-align: left; }
 
-    .server-card {
-        background: rgba(255, 255, 255, 0.03); border: 1px solid var(--panel-border); border-radius: 12px;
-        padding: 1.5rem; transition: all 0.3s ease;
-    }
-    .server-card:hover { border-color: var(--accent-primary); box-shadow: 0 0 20px var(--accent-glow); }
-
-    .server-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 1.25rem; }
-    .server-name { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); }
-    .server-status { display: flex; gap: 0.5rem; }
-
-    .metric-group { margin-bottom: 1rem; }
-    .metric-label { font-size: 0.85rem; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.05em; margin-bottom: 0.4rem; }
-    .metric-bar {
-        width: 100%; height: 24px; background: rgba(255, 255, 255, 0.05);
-        border: 1px solid var(--panel-border); border-radius: 6px; overflow: hidden;
-        position: relative; margin-bottom: 0.4rem;
-    }
-    .metric-fill {
-        height: 100%; display: flex; align-items: center; justify-content: flex-end;
-        padding-right: 0.5rem; font-size: 0.75rem; font-weight: 600; font-family: var(--font-mono);
+    .servers-table th {
+        background: rgba(255, 255, 255, 0.05); color: var(--text-primary); font-family: var(--font-mono);
+        font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.02em;
+        padding: 0.4rem 0.3rem; border-bottom: 1px solid var(--panel-border);
     }
 
-    .metric-ok { background: linear-gradient(90deg, rgba(34, 197, 94, 0.6), rgba(34, 197, 94, 0.3)); }
-    .metric-warning { background: linear-gradient(90deg, rgba(250, 204, 21, 0.6), rgba(250, 204, 21, 0.3)); }
-    .metric-critical { background: linear-gradient(90deg, rgba(239, 68, 68, 0.6), rgba(239, 68, 68, 0.3)); }
-
-    .metric-value { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-secondary); }
-    .metric-value strong { color: var(--text-primary); }
-
-    .card-footer { display: flex; gap: 0.5rem; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--panel-border); }
-    .card-footer button { flex: 1; padding: 0.5rem; font-size: 0.85rem; }
-
-    .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); }
-    .empty-state i { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
-
-    .delete-btn {
-        background: transparent; border: none; color: var(--text-secondary); cursor: pointer;
-        font-size: 0.9rem; padding: 0.25rem 0.5rem; border-radius: 4px; transition: 0.2s;
+    .servers-table td {
+        padding: 0.5rem 0.3rem; border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        font-size: 0.75rem; color: var(--text-primary); vertical-align: middle;
     }
+
+    .servers-table tr:hover { background: rgba(255, 255, 255, 0.01); }
+
+    .status-cell { display: flex; align-items: center; gap: 0.3rem; font-weight: 600; font-size: 0.68rem; text-transform: uppercase; font-family: var(--font-mono); }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+    .dot-ok { background-color: var(--success); box-shadow: 0 0 8px var(--success); }
+    .dot-warning { background-color: var(--warning); box-shadow: 0 0 8px var(--warning); }
+    .dot-critical { background-color: var(--critical); box-shadow: 0 0 8px var(--critical); }
+
+    .text-ok { color: var(--success); }
+    .text-warning { color: var(--warning); }
+    .text-critical { color: var(--critical); }
+
+    .server-name-cell { font-weight: 600; font-size: 0.8rem; }
+    .code-style { font-family: var(--font-mono); background: rgba(255, 255, 255, 0.04); padding: 0.05rem 0.2rem; border-radius: 3px; font-size: 0.7rem; }
+    .metric-value-cell { font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700; }
+    .last-check-time { font-family: var(--font-mono); font-size: 0.68rem; color: var(--text-secondary); }
+    .actions-cell { display: flex; gap: 0.3rem; }
+    .actions-cell .btn { padding: 0.25rem 0.5rem !important; font-size: 0.7rem !important; border-radius: 4px !important; }
+
+    .empty-state { text-align: center; padding: 4rem 2rem; color: var(--text-secondary); }
+    .empty-state i { font-size: 3.5rem; margin-bottom: 1.5rem; opacity: 0.5; }
+
+    .delete-btn { background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 0.9rem; padding: 0.25rem 0.5rem; border-radius: 4px; transition: 0.2s; }
     .delete-btn:hover { color: var(--critical); background: rgba(239, 68, 68, 0.1); }
-
-    @media (max-width: 768px) { .servers-grid { grid-template-columns: 1fr; } }
 </style>
 {% endblock %}
 
@@ -69,125 +62,100 @@
 </div>
 
 {% if servers %}
-    <div class="servers-grid">
-    {% for server in servers %}
-        {% set server_metrics = metrics.get(server.id, {}) %}
-        {% set cpu = server_metrics.get('cpu', {}) %}
-        {% set memory = server_metrics.get('memory', {}) %}
-        {% set disk = server_metrics.get('disk', {}) %}
-
-        <div class="server-card">
-            <div class="server-header">
-                <div>
-                    <div class="server-name">{{ server.name }}</div>
-                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">
-                        {{ server.prom_name or 'Unknown' }}
-                    </div>
-                </div>
-                <button type="button" class="delete-btn" onclick="deleteServer({{ server.id }});" title="Delete">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
-            </div>
-
-            <!-- CPU Metric -->
-            {% if cpu.get('metric_value') is not none %}
-                <div class="metric-group">
-                    <div class="metric-label">CPU Usage</div>
-                    {% set cpu_pct = cpu['metric_value']|float %}
-                    {% if cpu_pct >= server.cpu_critical_threshold %}
-                        {% set metric_class = 'metric-critical' %}
-                    {% elif cpu_pct >= server.cpu_warning_threshold %}
-                        {% set metric_class = 'metric-warning' %}
-                    {% else %}
-                        {% set metric_class = 'metric-ok' %}
-                    {% endif %}
-                    <div class="metric-bar">
-                        <div class="metric-fill {{ metric_class }}" style="width: {{ [cpu_pct, 100]|min }}%;">
-                            <span>{{ "%.1f"|format(cpu_pct) }}%</span>
-                        </div>
-                    </div>
-                    <div class="metric-value">
-                        <span>Current: <strong>{{ "%.1f"|format(cpu_pct) }}%</strong></span>
-                        <span>Critical: <strong>{{ server.cpu_critical_threshold }}%</strong></span>
-                    </div>
-                </div>
-            {% else %}
-                <div class="metric-group">
-                    <div class="metric-label">CPU Usage</div>
-                    <div style="color: var(--text-secondary); font-size: 0.85rem;">No data yet...</div>
-                </div>
-            {% endif %}
-
-            <!-- Memory Metric -->
-            {% if memory.get('metric_value') is not none %}
-                <div class="metric-group">
-                    <div class="metric-label">Memory Usage</div>
-                    {% set mem_pct = memory['metric_value']|float %}
-                    {% if mem_pct >= server.memory_critical_threshold %}
-                        {% set metric_class = 'metric-critical' %}
-                    {% elif mem_pct >= server.memory_warning_threshold %}
-                        {% set metric_class = 'metric-warning' %}
-                    {% else %}
-                        {% set metric_class = 'metric-ok' %}
-                    {% endif %}
-                    <div class="metric-bar">
-                        <div class="metric-fill {{ metric_class }}" style="width: {{ [mem_pct, 100]|min }}%;">
-                            <span>{{ "%.1f"|format(mem_pct) }}%</span>
-                        </div>
-                    </div>
-                    <div class="metric-value">
-                        <span>Current: <strong>{{ "%.1f"|format(mem_pct) }}%</strong></span>
-                        <span>Critical: <strong>{{ server.memory_critical_threshold }}%</strong></span>
-                    </div>
-                </div>
-            {% else %}
-                <div class="metric-group">
-                    <div class="metric-label">Memory Usage</div>
-                    <div style="color: var(--text-secondary); font-size: 0.85rem;">No data yet...</div>
-                </div>
-            {% endif %}
-
-            <!-- Disk Metric -->
-            {% if disk.get('metric_value') is not none %}
-                <div class="metric-group">
-                    <div class="metric-label">Disk Usage</div>
-                    {% set disk_pct = disk['metric_value']|float %}
-                    {% if disk_pct >= server.disk_critical_threshold %}
-                        {% set metric_class = 'metric-critical' %}
-                    {% elif disk_pct >= server.disk_warning_threshold %}
-                        {% set metric_class = 'metric-warning' %}
-                    {% else %}
-                        {% set metric_class = 'metric-ok' %}
-                    {% endif %}
-                    <div class="metric-bar">
-                        <div class="metric-fill {{ metric_class }}" style="width: {{ [disk_pct, 100]|min }}%;">
-                            <span>{{ "%.1f"|format(disk_pct) }}%</span>
-                        </div>
-                    </div>
-                    <div class="metric-value">
-                        <span>Current: <strong>{{ "%.1f"|format(disk_pct) }}%</strong></span>
-                        <span>Critical: <strong>{{ server.disk_critical_threshold }}%</strong></span>
-                    </div>
-                </div>
-            {% else %}
-                <div class="metric-group">
-                    <div class="metric-label">Disk Usage</div>
-                    <div style="color: var(--text-secondary); font-size: 0.85rem;">No data yet...</div>
-                </div>
-            {% endif %}
-
-            <div class="card-footer">
-                <a href="#" class="btn btn-secondary" style="flex: 1; justify-content: center; cursor: not-allowed;" title="Edit not available yet">
-                    <i class="fa-solid fa-edit"></i> Edit
-                </a>
-            </div>
+    <div class="glass-card" style="padding: 1rem;">
+        <div class="table-container">
+            <table class="servers-table">
+                <thead>
+                    <tr>
+                        <th style="width: 100px;">Status</th>
+                        <th>Server Name</th>
+                        <th>Target</th>
+                        <th>Prometheus</th>
+                        <th style="text-align: center;">CPU</th>
+                        <th style="text-align: center;">Memory</th>
+                        <th style="text-align: center;">Disk</th>
+                        <th>Last Checked</th>
+                        <th style="text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for server in servers %}
+                        {% set server_metrics = metrics.get(server.id, {}) %}
+                        {% set cpu = server_metrics.get('cpu', {}) %}
+                        {% set memory = server_metrics.get('memory', {}) %}
+                        {% set disk = server_metrics.get('disk', {}) %}
+                        
+                        {# Determine overall status #}
+                        {% set cpu_pct = cpu.get('metric_value', 0)|float %}
+                        {% set mem_pct = memory.get('metric_value', 0)|float %}
+                        {% set disk_pct = disk.get('metric_value', 0)|float %}
+                        
+                        {% if (cpu_pct >= server.cpu_critical_threshold) or (mem_pct >= server.memory_critical_threshold) or (disk_pct >= server.disk_critical_threshold) %}
+                            {% set overall_status = 'critical' %}
+                            {% set status_text = 'CRITICAL' %}
+                        {% elif (cpu_pct >= server.cpu_warning_threshold) or (mem_pct >= server.memory_warning_threshold) or (disk_pct >= server.disk_warning_threshold) %}
+                            {% set overall_status = 'warning' %}
+                            {% set status_text = 'WARNING' %}
+                        {% else %}
+                            {% set overall_status = 'ok' %}
+                            {% set status_text = 'OK' %}
+                        {% endif %}
+                        
+                        <tr>
+                            <td>
+                                <div class="status-cell">
+                                    <span class="status-dot dot-{{ overall_status }}"></span>
+                                    <span class="text-{{ overall_status }}">{{ status_text }}</span>
+                                </div>
+                            </td>
+                            <td class="server-name-cell">{{ server.name }}</td>
+                            <td><span class="code-style">{{ server.target or 'N/A' }}</span></td>
+                            <td><span class="code-style">{{ server.prom_name or 'Unknown' }}</span></td>
+                            <td style="text-align: center;">
+                                {% if cpu.get('metric_value') is not none %}
+                                    <span class="metric-value-cell text-{% if cpu_pct >= server.cpu_critical_threshold %}critical{% elif cpu_pct >= server.cpu_warning_threshold %}warning{% else %}ok{% endif %}">{{ "%.1f"|format(cpu_pct) }}%</span>
+                                {% else %}
+                                    <span style="color: var(--text-secondary); font-size: 0.7rem;">--</span>
+                                {% endif %}
+                            </td>
+                            <td style="text-align: center;">
+                                {% if memory.get('metric_value') is not none %}
+                                    <span class="metric-value-cell text-{% if mem_pct >= server.memory_critical_threshold %}critical{% elif mem_pct >= server.memory_warning_threshold %}warning{% else %}ok{% endif %}">{{ "%.1f"|format(mem_pct) }}%</span>
+                                {% else %}
+                                    <span style="color: var(--text-secondary); font-size: 0.7rem;">--</span>
+                                {% endif %}
+                            </td>
+                            <td style="text-align: center;">
+                                {% if disk.get('metric_value') is not none %}
+                                    <span class="metric-value-cell text-{% if disk_pct >= server.disk_critical_threshold %}critical{% elif disk_pct >= server.disk_warning_threshold %}warning{% else %}ok{% endif %}">{{ "%.1f"|format(disk_pct) }}%</span>
+                                {% else %}
+                                    <span style="color: var(--text-secondary); font-size: 0.7rem;">--</span>
+                                {% endif %}
+                            </td>
+                            <td class="last-check-time">
+                                {% if cpu.get('created_at') %}
+                                    {{ cpu.get('created_at') }}
+                                {% else %}
+                                    <span style="color: var(--text-secondary);">No data</span>
+                                {% endif %}
+                            </td>
+                            <td style="text-align: center;">
+                                <div class="actions-cell">
+                                    <button type="button" class="delete-btn" onclick="deleteServer({{ server.id }});" title="Delete">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-    {% endfor %}
     </div>
 {% else %}
     <div class="glass-card empty-state">
-        <div><i class="fa-solid fa-server"></i></div>
-        <h3>No Servers Configured</h3>
+        <i class="fa-solid fa-server"></i>
+        <h2>No Servers Configured</h2>
         <p>Start monitoring servers by adding a new configuration.</p>
         <a href="/server-config" class="btn btn-primary" style="display: inline-block; margin-top: 1rem;">
             <i class="fa-solid fa-plus"></i> Add First Server
@@ -210,10 +178,5 @@ function deleteServer(serverId) {
         })
         .catch(err => alert(`Error: ${err}`));
 }
-
-// Auto-refresh metrics every 30 seconds
-setInterval(() => {
-    // In a future enhancement, add real-time metric updates via AJAX
-}, 30000);
 </script>
 {% endblock %}
